@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Java / Maven
+target/
+
+# C# / .NET
+bin/
+obj/
+
+# Vite / Vitest cache
+.vite/
+
+# System files
+.DS_Store
+Thumbs.db

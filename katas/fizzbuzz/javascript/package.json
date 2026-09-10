@@ -1,0 +1,13 @@
+{
+  "name": "fizzbuzz-kata",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FizzBuzz TDD mob kata — JavaScript skeleton",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}
