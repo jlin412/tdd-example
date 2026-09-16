@@ -38,8 +38,9 @@ and move on — do not debate:
 | They ask | Ruling |
 |---|---|
 | What should `pop` do when empty? | **Their call** — but pick ONE and apply it to `peek` too. |
-| Reference's choice? | It throws. Say so only if they ask *after* deciding. |
-| May we push `null` / `undefined`? | **Yes.** That's exactly why "return `undefined` when empty" is a shaky contract — let them find it. |
+| Reference's choice? | It throws/raises, in all four languages. Say so only if they ask *after* deciding. |
+| What does *our language* do? | Python `list.pop()` raises `IndexError`; JS/TS `Array.pop()` returns `undefined`; `java.util.Stack.pop()` throws `EmptyStackException`; .NET `Stack<T>.Pop()` throws `InvalidOperationException`. Offer this only once they've committed — it ends the debate too early. |
+| May we push `None` / `null` / `undefined`? | **Yes.** That's exactly why "hand back nothing when empty" is a shaky contract — let them find it. (In C#, the sharper version is `default(int) == 0` on a stack of numbers.) |
 | Does `peek` remove? | **No.** That's the whole point of having it. |
 | Must it be generic (`Stack<T>`)? | Not to start. It's pattern-menu item (a) — reach it by refactor, not up front. |
 | What can it hold — one type or anything? | **Their call.** Both are valid designs; the retro compares them. |
@@ -49,8 +50,9 @@ and move on — do not debate:
 | Thread safety? Persistence? Undo? | Out of scope. Parking lot. |
 
 **Out of scope, say no:** thread safety, serialization/persistence, a `Queue`
-too, `Symbol.species`, iterators *unless* they arrive via menu item (e),
-performance benchmarking.
+too, language-specific exotica (`Symbol.species`, custom `__reduce__`,
+`ICloneable`), iterators *unless* they arrive via menu item (e), performance
+benchmarking.
 
 ## Coverage check
 
@@ -66,13 +68,32 @@ Two extras specific to this kata:
 
 - **Are the arrange steps repeating?** By the fifth test they will be. If nobody
   has extracted a helper, prompt for it — that's the "tests are code too" beat.
-- **Have they run `npm run typecheck` at all?** Vitest does not type-check. A
-  mob that only runs `npm test` has been using one safety net all session
-  without noticing the other exists.
+- **Do they know which safety nets they're actually running?** This differs per
+  language and most mobs never notice:
+  - **TypeScript** — have they run `npm run typecheck` *at all*? Vitest does not
+    type-check. A mob that only runs `npm test` has been using one net all
+    session without noticing the second exists.
+  - **Java / C#** — they've been getting compiler reds for free. Ask which of
+    their negative tests the compiler made redundant (pushing the wrong type),
+    and which it could never have caught (pop on empty, the internals leaking).
+  - **Python** — there is no second net. Ask what it would take to get one, and
+    whether any bug today would have been caught by it.
+
+## Language-specific beats worth pointing out
+
+Only if the mob doesn't get there itself, and only at the retro:
+
+| Language | The beat |
+|---|---|
+| Python | type hints are documentation — `Stack[int]().push("x")` runs fine. Also: `bool` subclasses `int`, so `True` sneaks past a capacity check. |
+| TypeScript | the same type error passes `npm test` and fails `npm run typecheck` — two nets, one habit. |
+| Java | generics are **erased**: `Stack<String>` and `Stack<Integer>` are the same class at runtime. And `Optional` cannot hold `null`, so menu item (d) can't express "I popped a null". |
+| C# | generics are **reified**: those two are different types. And `default(int)` is `0`, which is the sharpest version of the empty-sentinel ambiguity. |
 
 ## Retro prompt
 
 > Diff the test list you wrote at the start against this one. What did you miss?
 > Then: your LIFO test — how many items did it take to prove the order, and why
-> would one not have been enough? And finally, which bugs today would the
-> type-checker have caught, and which only the tests could?
+> would one not have been enough? And finally, which of today's bugs did your
+> language catch for you before a test ran, and which could only ever have been
+> found by a test you wrote? Would your answer change in a different language?
