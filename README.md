@@ -19,6 +19,7 @@ is there to reveal once the session is done.
 |------|-------|--------|
 | [FizzBuzz](katas/fizzbuzz/) — [Story](katas/fizzbuzz/FizzBuzzStory.md) · [Extended Story](katas/fizzbuzz/FizzBuzzExtendedStory.md) | The rhythm of TDD; inventing positive/boundary/edge/negative tests from a requirement; a team-chosen pattern refactor (rules engine, value object, DI, factory…); validation & type checking | ✅ Ready |
 | [Todo List (Angular)](katas/todo-list/) — [Story](katas/todo-list/TodoListStory.md) · [Edit stretch](katas/todo-list/TodoListEditStory.md) | **Frontend** TDD: driving a component through the DOM, signals-first state, DI, a team-chosen pattern refactor (signal store, smart/dumb split, computed, immutability) | ✅ Ready |
+| [Stack (TypeScript)](katas/stack/) — [Story](katas/stack/StackStory.md) · [Extended Story](katas/stack/StackExtendedStory.md) | A **stateful object** tested through its own API: tests as sequences, proving LIFO, the empty-stack contract, and generics — plus two safety nets (`npm test` vs `npm run typecheck`) that catch different things | ✅ Ready |
 | String Calculator | Parsing, custom delimiters, richer negative/edge cases | ⏳ Planned |
 
 ## Languages & tooling
@@ -29,13 +30,16 @@ is there to reveal once the session is done.
 | JavaScript | Vitest | `npm install && npm test` |
 | Java | JUnit 5 (Maven) | `mvn test` |
 | C# | xUnit | `dotnet test` |
+| TypeScript | Vitest + `tsc` | `npm install && npm test`, plus `npm run typecheck` |
 | Angular (TypeScript) | Vitest (`@angular/build`) | `npm install && npm test` |
 
 For the polyglot katas (e.g. FizzBuzz) pick whichever language your mob is most
-comfortable in — the kata is identical across all four. The **Todo List** kata is
-Angular-only on purpose: it teaches *framework* testing (components, DOM, DI,
-signals). Prerequisites: Python 3.9+, Node 18+ (Angular kata needs 20.19+/22.12+/24+),
-JDK 17+ / Maven, .NET SDK 8+.
+comfortable in — the kata is identical across all four. The other two are
+single-language on purpose: **Todo List** is Angular-only because it teaches
+*framework* testing (components, DOM, DI, signals), and **Stack** is TypeScript-only
+because generics are part of the exercise and the type-checker is a second,
+separate safety net. Prerequisites: Python 3.9+, Node 18+ (Angular kata needs
+20.19+/22.12+/24+), JDK 17+ / Maven, .NET SDK 8+.
 
 ## The loop (TL;DR)
 

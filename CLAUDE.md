@@ -1,0 +1,134 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this repo is
+
+A practice repo of **TDD mob/ensemble-programming katas**. It ships runnable
+*skeletons* for a human mob to fill in live, plus a *facilitator answer key*
+and *reference solutions* to reveal afterward. There is no application to run
+and no production feature work — changes here are almost always to the kata
+content itself (story text, skeleton comments/prompts, or reference
+solutions), not to app logic.
+
+Three katas exist today, each deliberately teaching a different *shape* of
+testing:
+
+- **`katas/fizzbuzz/`** — polyglot: Python, JavaScript, Java, C#. Same kata,
+  four language skeletons. A **pure function** — one input, one output, no state.
+- **`katas/todo-list/`** — Angular-only, on purpose (it teaches *framework*
+  testing: components, DOM, DI, signals — not just an algorithm).
+- **`katas/stack/`** — TypeScript-only, on purpose. A **stateful plain object
+  tested through its own API**: every test is a sequence (you can't `pop`
+  without `push`ing), and generics are a real pattern-menu item. See the
+  TypeScript caveat in the command table below.
+
+## Commands
+
+Run from inside the relevant language folder.
+
+| Language | Setup | Test |
+|---|---|---|
+| Python | `pip install -r requirements.txt` | `pytest` |
+| JavaScript | `npm install` | `npm test` (= `vitest run`; `npm run test:watch` for watch mode) |
+| Java | — | `mvn test` |
+| C# | — | `dotnet test` |
+| TypeScript (stack) | `npm install` | `npm test` (= `vitest run`) **and `npm run typecheck`** (= `tsc --noEmit`) |
+| Angular | `npm install` | `npm test` (= `ng test`, runs Vitest via `@angular/build`) |
+
+Angular needs Node 20.19+/22.12+/24+; the other JS/TS skeletons need Node 18+.
+Java needs JDK 17+; C# needs .NET SDK 8+.
+
+**Vitest does not type-check.** It transpiles TypeScript with esbuild and strips
+types without verifying them, so a type error will not fail `npm test` — only
+`npm run typecheck` catches it. In the stack kata this is deliberate teaching
+material (uncommenting its STEP 1 produces two different reds, a runtime
+`TypeError` and a compile-time `TS2339`), so don't "fix" it by wiring
+typechecking into the test script. When changing TypeScript in that kata, run
+both commands.
+
+**Solutions have no build files of their own.** `katas/*/solutions/<lang>/`
+holds only source — no `package.json`/`pom.xml`/`.csproj`. To run a solution
+suite, either point the sibling skeleton's test runner at it (e.g. from
+`katas/fizzbuzz/javascript/`: `npx vitest run --root ../solutions/javascript`)
+or copy the solution files over the skeleton in a scratch copy of the repo
+(each kata's root `README.md` has the exact `cp` commands). Don't overwrite a
+real skeleton with a solution unless asked.
+
+## Architecture: how a kata is assembled
+
+Every kata (`katas/<name>/`) follows the same four-piece structure. When
+editing one kata, keep the others (and the sibling pieces within the same
+kata) consistent with it — they're deliberately parallel.
+
+1. **Story file(s) at the kata root** (e.g. `FizzBuzzStory.md`,
+   `TodoListStory.md`) — the only spec a mob gets. These are **narrative,
+   not a numbered requirements list on purpose**: the story describes the
+   problem in prose with worked examples (a table of inputs → outputs, or a
+   UI walkthrough) but never says "R1, R2, R3...". Producing the requirements
+   list *is* the exercise — see STEP 0 below. A kata may have a second,
+   later story (`*ExtendedStory.md` / `*EditStory.md`) that changes the
+   requirements and deliberately breaks some existing tests.
+
+2. **Empty production skeleton** (e.g. `javascript/fizzbuzz.js`,
+   `angular/src/app/todo-list.ts`) — an empty class/component. Its header
+   comment points at the story file(s) and states the TDD rule: add nothing
+   until a red test demands it. It does **not** restate the requirements.
+
+3. **Test skeleton** (e.g. `javascript/fizzbuzz.test.js`,
+   `angular/src/app/todo-list.spec.ts`) — the mob-facing heart of the kata:
+   - **STEP 0 — the test list.** Before any code, the file seeds two
+     pending/todo tests (`it.todo(...)` in JS/TS, `@pytest.mark.skip` in
+     Python, `@Disabled` in Java, `[Fact(Skip=...)]` in C#) and prompts the
+     mob to keep naming more, translating the story into test names. A
+     fresh skeleton run is **all green** — nothing is failing yet.
+   - **STEP 1 — one worked example**, with its assertion shipped
+     **commented out**. Uncommenting it is the mob's deliberate first RED.
+     The three RED → GREEN → REFACTOR steps are labelled as comments
+     *inside* the test body.
+   - Everything after STEP 1 is comment **prompts, not answers** —
+     questions like "which number proves it?", never "test that 3 returns
+     Fizz". Prompts are tagged `[positive]` / `[boundary]` / `[edge]` /
+     `[negative]`.
+   - A **CHECKPOINT #1 pattern menu**: several named design patterns
+     (rules engine, value object, strategy, DI, factory, null object, or a
+     component-flavored equivalent — signal store, smart/dumb split,
+     computed, immutable updaters, filter strategy). The mob picks ONE at a
+     time; the file explains the payoff of each and which ones to likely
+     decline, and why.
+   - A **CHECKPOINT #2** for negative/edge cases (invalid input, boundary
+     contract decisions the story deliberately left open).
+
+4. **`facilitator/RULES.md`** — the canonical numbered rule list (R1, R2,
+   ...) and pre-decided "product owner" answers to the questions a mob will
+   ask, meant to be opened **during** the session (not before) once the mob
+   has produced its own list. This is where R-numbers legitimately live —
+   they do not appear in the story or skeleton files.
+
+5. **`solutions/<lang>/`** — one possible finished end state per pattern
+   choice made, with a complete test suite, kept closed until the retro.
+   Method/component names used here (e.g. `convert`, the exact empty-state
+   copy) are *one* choice the reference happened to make, not a mandate —
+   the story explicitly leaves naming/wording to the mob, and skeleton
+   comments flag that a different choice means the solution won't drop in
+   verbatim.
+
+`katas/<name>/README.md` documents the session flow, pattern menu, and test
+taxonomy for that kata in prose; `FACILITATION.md` (repo root) covers the
+mob mechanics that apply across all katas (driver/navigator roles, 4–5 min
+rotation, strong-style pairing, timeboxing, anti-patterns to watch for).
+
+## Conventions to preserve when editing kata content
+
+- Never put numbered requirements (R1, R2, ...) in a story file or skeleton
+  comment — that defeats the "mob derives the list" exercise. Numbered
+  rules belong only in `facilitator/RULES.md` and in `solutions/`.
+- Keep STEP 1's assertion commented out in skeletons; a fresh skeleton
+  must pass with everything green (STEP 1 skipped-via-comment, STEP 0
+  todos pending) — the mob's own uncomment is what produces the first red.
+- Don't hardcode a specific method/component name or UI copy as though it
+  were required, when the story leaves it to the mob — flag it as a
+  placeholder instead (see existing skeleton comments for the pattern).
+- When a change to a skeleton or story affects mob-facing prompts, update
+  the corresponding `facilitator/RULES.md` and any `README.md` sections
+  that describe session flow, so they don't drift out of sync.
