@@ -46,9 +46,11 @@ a test:
 - **An empty stack.** What should `pop` do when there's nothing left? What about
   `peek`? Throw? Hand back nothing? Something else? There is no universal answer
   here — languages genuinely disagree.
-- **Nothing-shaped items.** May you push `null` or `undefined`? And if you chose
-  "return `undefined` when empty" above — how would a caller tell an empty stack
-  apart from a stack whose top item *is* `undefined`?
+- **Nothing-shaped items.** May you push whatever your language's *nothing* is —
+  `None`, `null`, `undefined`? And if you chose "hand back nothing when empty"
+  above, how would a caller tell an empty stack apart from a stack whose top
+  item *is* nothing? (In a language with default values, ask the same question
+  about a stack of numbers holding a legitimate `0`.)
 - **How big can it get?** The story says nothing about a limit.
 - **The internals.** If a caller gets hold of whatever your stack stores things
   in, can they change the stack behind its back? Should they be able to?
@@ -70,13 +72,20 @@ that set up the situation you're about to assert on.
 
 ## Where things live
 
-- Skeleton to fill in: [typescript/stack.ts](typescript/stack.ts) +
-  [typescript/stack.spec.ts](typescript/stack.spec.ts)
-- Reference solution (reveal at the end):
-  [solutions/typescript/stack.ts](solutions/typescript/stack.ts)
-- Run the tests: from `typescript/`, `npm install` then `npm test` —
-  **and `npm run typecheck`**, which is a separate net that catches different
-  bugs.
+Pick a language — the kata is the same in all four. The skeleton to fill in, the
+reference solution to reveal at the end, and how to run the tests:
+
+| Language | Skeleton | Solution | Run |
+|---|---|---|---|
+| Python | [python/](python/) | [solutions/python/](solutions/python/) | `pip install -r requirements.txt`, then `pytest` |
+| TypeScript | [typescript/](typescript/) | [solutions/typescript/](solutions/typescript/) | `npm install`, then `npm test` — **and `npm run typecheck`** |
+| Java | [java/](java/) | [solutions/java/](solutions/java/) | `mvn test` |
+| C# | [csharp/](csharp/) | [solutions/csharp/](solutions/csharp/) | `dotnet test` |
+
+Your language decides how much help you get on the gaps above. Java and C#
+refuse to build code whose types don't line up; TypeScript checks types only
+when you ask it to (`npm run typecheck` — the test run won't); Python checks
+nothing at all. None of them will decide the empty-stack contract for you.
 
 ## What next
 

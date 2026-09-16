@@ -18,10 +18,15 @@ testing:
   four language skeletons. A **pure function** — one input, one output, no state.
 - **`katas/todo-list/`** — Angular-only, on purpose (it teaches *framework*
   testing: components, DOM, DI, signals — not just an algorithm).
-- **`katas/stack/`** — TypeScript-only, on purpose. A **stateful plain object
-  tested through its own API**: every test is a sequence (you can't `pop`
-  without `push`ing), and generics are a real pattern-menu item. See the
-  TypeScript caveat in the command table below.
+- **`katas/stack/`** — polyglot: Python, TypeScript, Java, C# (note the
+  TypeScript, *not* JavaScript — generics are a pattern-menu item here). A
+  **stateful plain object tested through its own API**: every test is a
+  sequence (you can't `pop` without `push`ing). Unlike FizzBuzz, the four
+  language versions are deliberately *not* interchangeable in their lesson:
+  how many safety nets a language gives you is itself the teaching material
+  (Python none, TypeScript one you must ask for, Java/C# a compiler), and each
+  skeleton's checkpoint #2 and each solution's tests pin its own language's
+  answer. Keep that per-language divergence when editing.
 
 ## Commands
 
@@ -42,10 +47,11 @@ Java needs JDK 17+; C# needs .NET SDK 8+.
 **Vitest does not type-check.** It transpiles TypeScript with esbuild and strips
 types without verifying them, so a type error will not fail `npm test` — only
 `npm run typecheck` catches it. In the stack kata this is deliberate teaching
-material (uncommenting its STEP 1 produces two different reds, a runtime
-`TypeError` and a compile-time `TS2339`), so don't "fix" it by wiring
-typechecking into the test script. When changing TypeScript in that kata, run
-both commands.
+material (uncommenting the TypeScript STEP 1 produces two different reds, a
+runtime `TypeError` and a compile-time `TS2339`, where Python gets one
+`AttributeError` and Java/C# refuse to build at all), so don't "fix" it by
+wiring typechecking into the test script. When changing TypeScript in that
+kata, run both commands.
 
 **Solutions have no build files of their own.** `katas/*/solutions/<lang>/`
 holds only source — no `package.json`/`pom.xml`/`.csproj`. To run a solution

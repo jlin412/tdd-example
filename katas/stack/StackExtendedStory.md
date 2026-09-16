@@ -45,12 +45,20 @@ be able to say why.
 1. **Update your test list first.** Which existing tests does a required capacity
    break? Which new ones do you need? Write the list before touching code.
 2. **Predict the damage** — mark the tests you expect to fail, and say why.
-   (In TypeScript, some of them won't fail — they'll refuse to compile. Which
-   command tells you that?)
+   Your language changes the *shape* of the damage: in Java and C# the old
+   `new Stack()` calls won't fail, they'll refuse to build; in TypeScript
+   they'll pass `npm test` and fail `npm run typecheck`; in Python they'll
+   sail through construction and blow up somewhere later. Predict which.
 3. **Run them.** Were you right?
 4. **Now drive the change test-first**, one red at a time.
 
 ## Where things live
 
-- Reference solution:
-  [solutions/typescript/boundedStack.ts](solutions/typescript/boundedStack.ts)
+The reference solution, per language — reveal it at the retro, not before:
+
+| Language | Solution |
+|---|---|
+| Python | [solutions/python/bounded_stack.py](solutions/python/bounded_stack.py) |
+| TypeScript | [solutions/typescript/boundedStack.ts](solutions/typescript/boundedStack.ts) |
+| Java | [solutions/java/BoundedStack.java](solutions/java/BoundedStack.java) |
+| C# | [solutions/csharp/BoundedStack.cs](solutions/csharp/BoundedStack.cs) |
