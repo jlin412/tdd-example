@@ -8,16 +8,25 @@ namespace Kata;
 // You do not need this until STORY 2 (UrlShortenerDatabaseStory.md). Until
 // then it just sits here, unused. Nothing in story 1 touches SQL.
 //
-// It exists because SQLite has one sharp edge that teaches nothing about TDD,
-// and it would eat ten minutes of your session:
+// It exists because SQLite has two sharp edges that teach nothing about TDD,
+// and between them they would eat ten minutes of your session:
 //
-//   A "Data Source=:memory:" database belongs to ONE SqliteConnection object.
-//   Dispose that connection and the schema and every row are gone. Open a
-//   SECOND connection with the very same connection string and you get a
-//   DIFFERENT, EMPTY database — it is not a shared name.
+//   1. A "Data Source=:memory:" database belongs to ONE SqliteConnection
+//      object. Dispose it and the schema and every row are gone, and a SECOND
+//      connection with the same connection string gets a DIFFERENT, EMPTY
+//      database. So this class holds one connection open for its whole life.
 //
-// So this class opens exactly one connection, creates the schema on it, and
-// hands that live connection out. Use it like this:
+//   2. A SqliteConnection is NOT thread-safe. Two requests using the same one
+//      at the same time is undefined behaviour — in practice a
+//      NullReferenceException from somewhere inside the driver. If anything
+//      you build here will be used concurrently, it needs a connection of its
+//      own, which is why ConnectionString is exposed alongside Connection.
+//
+// Hence a uniquely-named shared-cache database rather than plain ":memory:":
+// the keep-alive connection below keeps it alive, and anyone who needs their
+// own connection can open one against the same data.
+//
+// Use it like this:
 //
 //   public class MyRepositoryTests : IDisposable
 //   {
@@ -40,11 +49,24 @@ namespace Kata;
 // but do read it, because one line of it is going to matter a great deal.
 public sealed class SqliteTestDatabase : IDisposable
 {
+    /// A connection you may use directly — single-threaded only.
     public SqliteConnection Connection { get; }
+
+    /// Use this if anything you are testing might touch the database from more
+    /// than one thread at a time: open a connection per operation instead of
+    /// sharing one. Opening is cheap — Microsoft.Data.Sqlite pools connections.
+    public string ConnectionString { get; }
 
     public SqliteTestDatabase()
     {
-        Connection = new SqliteConnection("Data Source=:memory:");
+        // A unique name per instance, so tests running in parallel never see
+        // each other's rows. Shared cache is what lets a second connection
+        // reach the same in-memory database at all.
+        ConnectionString = $"Data Source=kata-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+
+        // This one stays open for the lifetime of the fixture. The moment the
+        // last connection closes, the database ceases to exist.
+        Connection = new SqliteConnection(ConnectionString);
         Connection.Open();
 
         using var schema = Connection.CreateCommand();

@@ -76,13 +76,36 @@ public class UrlShortener
 
     private const int MaxMintingAttempts = 5;
 
-    private readonly SqliteConnection _connection;
+    private readonly string _connectionString;
     private readonly IShortCodeGenerator _generator;
 
-    public UrlShortener(SqliteConnection connection, IShortCodeGenerator generator)
+    // A connection STRING, not a connection — and that is not a detail.
+    //
+    // The first version of this class took a shared SqliteConnection, which is
+    // how almost everyone writes it. It passed every test in this file except
+    // one: ConcurrentRequestsNeverIssueTheSameCodeTwice, which failed
+    // intermittently with a NullReferenceException from inside the driver,
+    // because a SqliteConnection is not thread-safe and a web application is
+    // the most concurrent thing there is.
+    //
+    // No isolated test could have found that. It is not reachable through a
+    // fake repository, it is not visible when you call the service directly
+    // from one thread, and it does not depend on any rule in the story. It is
+    // a property of the wiring — which is exactly what an integrated test is
+    // for, and the strongest single argument in this solution's favour.
+    public UrlShortener(string connectionString, IShortCodeGenerator generator)
     {
-        _connection = connection;
+        _connectionString = connectionString;
         _generator = generator;
+    }
+
+    // Opening per operation is cheap: Microsoft.Data.Sqlite pools connections,
+    // so this is a pool checkout rather than a new database handle.
+    private SqliteConnection OpenConnection()
+    {
+        var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        return connection;
     }
 
     public string Shorten(string longUrl)
@@ -96,7 +119,8 @@ public class UrlShortener
         {
             var code = _generator.Next();
 
-            using var command = _connection.CreateCommand();
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = "INSERT INTO links (code, url) VALUES ($code, $url)";
             command.Parameters.AddWithValue("$code", code);
             command.Parameters.AddWithValue("$url", longUrl);
@@ -129,7 +153,8 @@ public class UrlShortener
         // stated twice — once per store — and a contract test existed to prove
         // the two agreed. Here there is only one store, so there is only one
         // place it can be, and nothing to disagree with.
-        using var command = _connection.CreateCommand();
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
         command.CommandText = "SELECT url FROM links WHERE code = $code";
         command.Parameters.AddWithValue("$code", shortCode);
 

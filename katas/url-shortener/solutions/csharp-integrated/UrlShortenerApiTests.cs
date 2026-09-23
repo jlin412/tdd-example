@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -17,7 +19,7 @@ namespace Kata;
 //
 // Compare with solution 1, which needs four test classes to cover the same
 // requirements: a service suite against a fake, a contract suite run twice, and
-// an HTTP suite. Twenty-four test methods there; fourteen here.
+// an HTTP suite.
 //
 // WHAT IS DELIBERATELY ABSENT: any fake store. There is nothing in this
 // solution that can lie to you about how storage behaves, because there is
@@ -25,13 +27,18 @@ namespace Kata;
 // story on — a fake that silently overwrites a taken code while the database
 // refuses it — is not mitigated here. It is unreachable.
 //
-// WHAT IS PRESENT, AND WHY: a stub generator. Exactly one double, introduced
-// for exactly one reason — "a code collision must not lose a link" is a state
-// you cannot reach by asking a real random generator nicely. That is the test
-// that justifies a seam, and it is worth being able to say so in one sentence.
-// Everything else runs against the real thing.
+// WHAT IS PRESENT, AND WHY: a stub generator. One double, introduced for one
+// reason — a code collision is a state you cannot reach by asking a real
+// random generator nicely. That is the test that justifies a seam, and it is
+// worth being able to say so in one sentence. Everything else runs against the
+// real thing.
 public class UrlShortenerApiTests : IAsyncLifetime
 {
+    // ── Test doubles, and the rule for having them ────────────────────
+    // A double needs a test that cannot be written without it. These two
+    // qualify; nothing else in the solution does.
+
+    /// Hands out exactly these codes, in order. For pinning a collision.
     private sealed class FixedCodes : IShortCodeGenerator
     {
         private readonly Queue<string> _codes;
@@ -39,25 +46,40 @@ public class UrlShortenerApiTests : IAsyncLifetime
         public string Next() => _codes.Dequeue();
     }
 
+    /// A deliberately tiny code space, so concurrent requests genuinely
+    /// contend instead of scattering across a billion possibilities.
+    private sealed class SmallCodeSpace : IShortCodeGenerator
+    {
+        private readonly int _size;
+        public SmallCodeSpace(int size) => _size = size;
+        public string Next() => $"c{RandomNumberGenerator.GetInt32(_size)}";
+    }
+
     // The real database. SqliteTestDatabase holds one open connection and
     // creates the schema; xUnit builds a fresh instance of this class per test
-    // method, so every test below gets a pristine, empty database for free.
+    // method, so every test below gets a pristine, empty database — which is
+    // also what makes it safe for xUnit to run test classes in parallel.
     private readonly SqliteTestDatabase _database = new();
 
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
     // Most tests don't care what the codes are, so the default is the REAL
-    // generator. Tests that need to control minting call StartWith(...) instead.
-    public Task InitializeAsync() => StartWith(new RandomShortCodeGenerator());
+    // generator. Tests that need to control minting say so, loudly, in their
+    // own body — see RestartTheApplication below.
+    public Task InitializeAsync() => StartTheApplication(new RandomShortCodeGenerator());
 
-    private async Task StartWith(IShortCodeGenerator generator)
+    private async Task StartTheApplication(IShortCodeGenerator generator)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddSingleton(_database.Connection);
         builder.Services.AddSingleton(generator);
-        builder.Services.AddSingleton<UrlShortener>();
+        // The connection STRING, so the service opens its own connection per
+        // operation. Sharing one SqliteConnection across requests is not
+        // thread-safe — see the note in UrlShortener's constructor, and the
+        // concurrency test that found it.
+        builder.Services.AddSingleton(
+            new UrlShortener(_database.ConnectionString, generator));
 
         _app = builder.Build();
         _app.MapUrlEndpoints();
@@ -65,10 +87,13 @@ public class UrlShortenerApiTests : IAsyncLifetime
         _client = _app.GetTestClient();
     }
 
-    private async Task RestartWith(IShortCodeGenerator generator)
+    /// Tears the whole web application down and builds a new one over the SAME
+    /// database. Named for what it does, because in two tests below the restart
+    /// is not setup — it is the thing being tested.
+    private async Task RestartTheApplication(IShortCodeGenerator mintingCodesFrom)
     {
         await _app.DisposeAsync();
-        await StartWith(generator);
+        await StartTheApplication(mintingCodesFrom);
     }
 
     public async Task DisposeAsync()
@@ -77,11 +102,28 @@ public class UrlShortenerApiTests : IAsyncLifetime
         _database.Dispose();
     }
 
-    private Task<HttpResponseMessage> Post(string url) =>
-        _client.PostAsJsonAsync("/links", new ShortenRequest(url));
+    // ── Talking to the API ────────────────────────────────────────────
+    // These deliberately do NOT use ShortenRequest / ShortenResponse /
+    // ResolveResponse — the production records. A test that deserializes into
+    // the very type it is meant to be pinning cannot detect a change to it:
+    // rename ShortenResponse.Code tomorrow and every assertion would still
+    // compile and still pass while the published JSON silently changed shape.
+    //
+    // So the wire contract is spelled out here, by hand, in the only place it
+    // should live in a test: an anonymous object going out, and JSON property
+    // names coming back. Note what that immediately makes visible and the
+    // round-trip through production types hid — the wire is camelCase.
 
-    private static async Task<string> CodeOf(HttpResponseMessage response) =>
-        (await response.Content.ReadFromJsonAsync<ShortenResponse>())!.Code;
+    private Task<HttpResponseMessage> Post(string url) =>
+        _client.PostAsJsonAsync("/links", new { url });
+
+    private static async Task<string> FieldOf(HttpResponseMessage response, string field) =>
+        (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty(field).GetString()!;
+
+    private static Task<string> CodeOf(HttpResponseMessage response) => FieldOf(response, "code");
+
+    private async Task<string> ResolveUrlAt(string code) =>
+        await FieldOf(await _client.GetAsync($"/links/{code}"), "url");
 
     // ── 1. the round trip ─────────────────────────────────────────────
     // The first test written, and it covers more ground than solution 1's
@@ -96,18 +138,14 @@ public class UrlShortenerApiTests : IAsyncLifetime
         var code = await CodeOf(created);
         Assert.Equal($"/links/{code}", created.Headers.Location?.ToString());
 
-        var resolved = await _client.GetAsync($"/links/{code}");
-        Assert.Equal(HttpStatusCode.OK, resolved.StatusCode);
-        Assert.Equal(
-            "https://example.com/articles/tdd-mob-katas",
-            (await resolved.Content.ReadFromJsonAsync<ResolveResponse>())!.Url);
+        Assert.Equal("https://example.com/articles/tdd-mob-katas", await ResolveUrlAt(code));
     }
 
     // ── 2. codes are actually generated ───────────────────────────────
     // Note the assertion: codes DIFFER. Never what they are. Reading the code
     // out of the response instead of pinning a literal is what lets the real
-    // generator run — no stub needed for this or any test below except the
-    // collision one.
+    // generator run — no stub is needed for this or any test below except the
+    // two that are explicitly about minting.
     [Fact] // [boundary] (R3)
     public async Task TwoDifferentUrlsGetTwoDifferentCodes()
     {
@@ -123,12 +161,8 @@ public class UrlShortenerApiTests : IAsyncLifetime
         var first = await CodeOf(await Post("https://example.com/first"));
         var second = await CodeOf(await Post("https://example.com/second"));
 
-        Assert.Equal("https://example.com/first",
-            (await (await _client.GetAsync($"/links/{first}")).Content
-                .ReadFromJsonAsync<ResolveResponse>())!.Url);
-        Assert.Equal("https://example.com/second",
-            (await (await _client.GetAsync($"/links/{second}")).Content
-                .ReadFromJsonAsync<ResolveResponse>())!.Url);
+        Assert.Equal("https://example.com/first", await ResolveUrlAt(first));
+        Assert.Equal("https://example.com/second", await ResolveUrlAt(second));
     }
 
     // ── 3. the contract decisions ─────────────────────────────────────
@@ -169,14 +203,13 @@ public class UrlShortenerApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, shouted.StatusCode);
     }
 
-    // ── 4. the one place a double is justified ────────────────────────
+    // ── 4. minting, where the one double earns its place ──────────────
     [Fact] // [negative] (R9) — a collision must not lose a link
     public async Task ARepeatedCodeMintsAnotherRatherThanOverwriting()
     {
         // The real generator will not collide on demand, and waiting for it to
-        // is not a test strategy. This is the state that earns a seam — and it
-        // is the ONLY one in this solution.
-        await RestartWith(new FixedCodes("abc123", "abc123", "xyz789"));
+        // is not a test strategy. This is the state that earns a seam.
+        await RestartTheApplication(mintingCodesFrom: new FixedCodes("abc123", "abc123", "xyz789"));
 
         var first = await CodeOf(await Post("https://example.com/first"));
         var second = await CodeOf(await Post("https://example.com/second"));
@@ -187,18 +220,15 @@ public class UrlShortenerApiTests : IAsyncLifetime
         // The proof that nothing was quietly overwritten. Note that this is
         // asserting against the REAL database's PRIMARY KEY, not against a
         // fake's promise to behave like one.
-        Assert.Equal("https://example.com/first",
-            (await (await _client.GetAsync("/links/abc123")).Content
-                .ReadFromJsonAsync<ResolveResponse>())!.Url);
-        Assert.Equal("https://example.com/second",
-            (await (await _client.GetAsync("/links/xyz789")).Content
-                .ReadFromJsonAsync<ResolveResponse>())!.Url);
+        Assert.Equal("https://example.com/first", await ResolveUrlAt("abc123"));
+        Assert.Equal("https://example.com/second", await ResolveUrlAt("xyz789"));
     }
 
     [Fact] // [edge] (R9) — a generator that will never cooperate
     public async Task GivingUpBeatsLoopingForeverWhenEveryCodeIsTaken()
     {
-        await RestartWith(new FixedCodes("abc123", "abc123", "abc123", "abc123", "abc123", "abc123"));
+        await RestartTheApplication(mintingCodesFrom:
+            new FixedCodes("abc123", "abc123", "abc123", "abc123", "abc123", "abc123"));
         await Post("https://example.com/first");
 
         // The service gives up — and NOTHING maps InvalidOperationException to
@@ -219,7 +249,39 @@ public class UrlShortenerApiTests : IAsyncLifetime
             () => Post("https://example.com/second"));
     }
 
-    // ── 5. what only the transport can catch ──────────────────────────
+    // ── 5. concurrency, which only an integrated test can ask about ───
+    [Fact] // [negative] (R9) — the race, for real this time
+    public async Task ConcurrentRequestsNeverIssueTheSameCodeTwice()
+    {
+        // The collision test above simulates contention with a scripted
+        // generator. This one causes it: fifty requests in flight at once,
+        // against a code space small enough that they genuinely fight over it.
+        //
+        // What makes this answerable at all is that the whole stack is real —
+        // a fake repository can be made to behave however you imagined under
+        // concurrency, which is exactly the assurance you do not want here.
+        await RestartTheApplication(mintingCodesFrom: new SmallCodeSpace(512));
+
+        var urls = Enumerable.Range(0, 50).Select(i => $"https://example.com/{i}").ToArray();
+
+        var responses = await Task.WhenAll(urls.Select(Post));
+
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
+
+        var codes = await Task.WhenAll(responses.Select(CodeOf));
+
+        // No code was handed to two callers. A service that trusted its
+        // generator, or a store that overwrote on conflict, fails here.
+        Assert.Equal(codes.Length, codes.Distinct().Count());
+
+        // And every link points where its own request said it should.
+        for (var i = 0; i < urls.Length; i++)
+        {
+            Assert.Equal(urls[i], await ResolveUrlAt(codes[i]));
+        }
+    }
+
+    // ── 6. what only the transport can catch ──────────────────────────
     [Fact] // [negative] — routing is real
     public async Task AMisspelledRouteIs404()
     {
@@ -235,20 +297,16 @@ public class UrlShortenerApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    // ── 6. what only the real database can catch ──────────────────────
+    // ── 7. what only the real database can catch ──────────────────────
     [Fact] // [positive] (R4) — persistence, proven rather than promised
     public async Task LinksSurviveTheProcessThatCreatedThem()
     {
         var code = await CodeOf(await Post("https://example.com/first"));
 
-        // Tear the whole web application down and build a brand new one over
-        // the same database — a restart, as far as the app is concerned.
-        await RestartWith(new RandomShortCodeGenerator());
+        // The restart IS the assertion here: a brand new application, over the
+        // same database, resolving a code the previous one minted.
+        await RestartTheApplication(mintingCodesFrom: new RandomShortCodeGenerator());
 
-        var resolved = await _client.GetAsync($"/links/{code}");
-
-        Assert.Equal(HttpStatusCode.OK, resolved.StatusCode);
-        Assert.Equal("https://example.com/first",
-            (await resolved.Content.ReadFromJsonAsync<ResolveResponse>())!.Url);
+        Assert.Equal("https://example.com/first", await ResolveUrlAt(code));
     }
 }

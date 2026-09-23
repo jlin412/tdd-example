@@ -95,6 +95,17 @@ Two ways a genuine red bar still appears:
   needs its HTTP suite specifically *because* the rest of it is isolated.
 - **Tests are coupled to structure.** Merge the service and the repository one
   day and the contract suite has to move with them.
+- **It tests implementation details, by one respected definition.** Dennis
+  Doomen's laws of TDD argue for testing only *observable behaviour* and warn
+  that test-per-class is usually the wrong scope — and `UrlRepositoryContractTests`
+  drives `IUrlRepository` directly, which is not something a caller can see. It
+  is defensible (holding two stores to one contract is the entire point) but it
+  is a genuine charge to answer, and his caution about DRY-via-base-classes
+  lands on that abstract suite too.
+- **It cannot test concurrency.** Solution 2's integrated suite found a real
+  thread-safety defect in a shared database connection. Nothing in this design
+  can: a fake behaves however you imagined under load, and the service is only
+  ever called from one thread.
 - **An interface that exists partly for testing.** `IUrlRepository` has one
   production implementation. That is a real cost, and "test-induced design
   damage" is a fair charge to answer rather than dismiss.

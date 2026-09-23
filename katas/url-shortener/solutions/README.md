@@ -16,11 +16,12 @@ test.
 | Repository interface | yes — `IUrlRepository` | **none** — nothing ever forced one |
 | Source files | 6 | 3 |
 | Test classes | 3 | 1 |
-| Test executions | 30 | 13 |
-| Whole suite | ~360–680 ms | ~480 ms |
-| **Fast subset** | **22 tests in ~10 ms** | **none — every test ~37 ms** |
+| Test executions | 30 | 14 |
+| Whole suite | ~360–680 ms | ~570–760 ms |
+| **Fast subset** | **22 tests in ~10 ms** | **none — every test ~40 ms** |
 | Can prove "survives a restart" | no | **yes** |
 | Can simulate a database failure | yes | no |
+| Can find a concurrency defect | no | **yes — it did** |
 
 Neither is the right answer. Having both is the point: the mob compares its own
 design against two defensible end states and has to say which trade it made and
@@ -91,7 +92,7 @@ both** — they each define `UrlShortener` and would collide.
 # from katas/url-shortener/ — over a scratch copy to keep the skeleton pristine
 cp solutions/csharp-isolated/*.cs   csharp/ && (cd csharp && dotnet test)   # 30 passing
 # or
-cp solutions/csharp-integrated/*.cs csharp/ && (cd csharp && dotnet test)   # 13 passing
+cp solutions/csharp-integrated/*.cs csharp/ && (cd csharp && dotnet test)   # 14 passing
 ```
 
 `csharp/SqliteTestDatabase.cs` is **not** in either solution folder on purpose —
@@ -100,7 +101,7 @@ untouched. Both solutions use it.
 
 Verified on .NET 8 with `Microsoft.Data.Sqlite` 8.0.8 and
 `Microsoft.AspNetCore.TestHost` 8.0.8: solution 1 **30/30**, solution 2
-**13/13**, no warnings in either.
+**14/14**, no warnings in either.
 
 Keep them closed until the retro. The solutions deliberately *show their
 judgment* — which patterns they took, which they declined, and why — so the retro

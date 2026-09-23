@@ -74,8 +74,18 @@ testing:
   - Changing the route `"/links"` to `"/lnks"` fails **7** tests, all in
     `UrlEndpointsTests` and none in the service or contract suites.
   - The measured costs the solution docs argue from: real SQLite ≈ **0.2 ms**
-    per test, the web host ≈ **29–37 ms** per test. The whole "which ratio?"
-    discussion rests on that 170× gap, so re-measure rather than reword it.
+    per test, the web host ≈ **29–40 ms** per test. The whole "which ratio?"
+    discussion rests on that ~170× gap, so re-measure rather than reword it.
+
+  One trap to leave alone: the integrated `UrlShortener` takes a connection
+  **string** and opens a connection per operation. Do not "simplify" it to take
+  a shared `SqliteConnection` — that is not thread-safe, and under the
+  concurrency test it throws `NullReferenceException` from inside the driver,
+  *intermittently*. An early 200-request probe passed by luck, which is exactly
+  how undefined behaviour behaves. `SqliteTestDatabase` therefore exposes both
+  `Connection` (single-threaded use, solution 1) and `ConnectionString`
+  (concurrent use, solution 2) over a uniquely-named shared-cache in-memory
+  database.
 
 ## Commands
 

@@ -31,14 +31,46 @@ whatever is needed to satisfy it.
 | 9 | giving up beats looping forever | and this is where the suite earns its keep: see below |
 | 10 | a misspelled route is 404 | real routing |
 | 11 | a malformed JSON body is 400 | real model binding, handled by the framework before any of this code runs |
-| 12 | links survive the process that created them | tear the whole app down, build a new one over the same database, resolve the old code. **R4 proven rather than promised** — solution 1 cannot write this test at all |
+| 10 | **concurrent requests never issue the same code twice** | fifty requests in flight at once over a deliberately small code space. See below — this one found a real defect |
+| 11 | a misspelled route is 404 | real routing |
+| 12 | a malformed JSON body is 400 | real model binding, handled by the framework before any of this code runs |
+| 13 | links survive the process that created them | tear the whole app down, build a new one over the same database, resolve the old code. **R4 proven rather than promised** — solution 1 cannot write this test at all |
 
-**Tests 9 and 12 are the ones to read.** Test 12 is the requirement that
+**Tests 9, 10 and 13 are the ones to read.** Test 13 is the requirement that
 *motivates* solution 1's entire architecture, and solution 1 can never actually
-verify it. Test 9 found a real gap while this solution was being written:
-nothing maps the give-up exception to a status code, so a caller gets an
-unhandled exception. Solution 1's isolated suite asserts the same give-up
-behaviour, passes, and never asks what a caller sees.
+verify it. Test 9 found a gap: nothing maps the give-up exception to a status
+code, so a caller gets an unhandled exception — solution 1's isolated suite
+asserts the same give-up behaviour, passes, and never asks what a caller sees.
+
+### Test 10 found a real bug, and nothing else could have
+
+The first version of this solution's `UrlShortener` took a shared
+`SqliteConnection`, which is how nearly everyone writes it. It passed every
+test here except the concurrent one, which failed **intermittently** with a
+`NullReferenceException` thrown from inside the driver.
+
+The cause: **a `SqliteConnection` is not thread-safe**, and a web application is
+the most concurrent thing there is. The fix was to inject a connection *string*
+and open a connection per operation (pooled, so it is cheap).
+
+Sit with what it would have taken to find that any other way:
+
+- it is not reachable through a fake repository — a fake behaves however you
+  imagined it would under concurrency, which is precisely the assurance you do
+  not want;
+- it is invisible when the service is called directly from one thread, which is
+  every test in solution 1;
+- it does not violate any rule in any of the three stories, so no amount of
+  requirements analysis would have produced a test for it.
+
+It is a property of the **wiring**, and it was found by a test that exercised the
+wiring. That is the strongest single argument in this solution's favour, and it
+arrived by accident rather than by design — which is rather the point.
+
+A footnote worth keeping: an early probe of 200 concurrent requests passed
+cleanly and was briefly taken as evidence that the shared connection was fine.
+It was luck. Undefined behaviour is *allowed* to work. A race that passes is not
+a race that is absent.
 
 ## The design that fell out — and what is missing from it
 
@@ -71,7 +103,7 @@ cannot be written without it.**
   broken" failure modes solution 1 has to guard against are impossible here.
 - **It can prove persistence.** Test 12 restarts the application. That is the
   requirement the whole kata turns on, and only this solution verifies it.
-- **Far less code.** 3 files against 6; 1 test class against 3; 13 test
+- **Far less code.** 3 files against 6; 1 test class against 3; 14 test
   executions against 30 — for identical requirements.
 - **Enormous refactoring freedom.** The tests touch nothing but HTTP, so every
   decision underneath is yours to change. Merge the service into the endpoint,
@@ -80,10 +112,12 @@ cannot be written without it.**
 - **Tests read as requirements.** Every test names a customer-visible outcome.
   A non-programmer could review this file.
 - **No fake to keep honest**, and therefore no contract suite to maintain.
+- **It can find wiring defects nobody thought to look for** — see test 10. No
+  isolated suite can reach a thread-safety bug in a shared connection.
 
 ## Cons
 
-- **There is no fast tier.** Every test costs ~37 ms because each one builds and
+- **There is no fast tier.** Every test costs ~40 ms because each one builds and
   starts a host. Solution 1 runs 22 of its 30 tests in about 10 ms *combined*.
   Today the totals are comparable; at ten times the requirements this suite is
   ~5 s and solution 1's inner loop is still ~100 ms. **That gap is the whole
@@ -96,8 +130,10 @@ cannot be written without it.**
 - **Unreachable states stay unreachable.** "The database times out", "the
   connection drops mid-write" — you cannot cause those without a seam, and this
   solution deliberately has only one.
-- **Domain coupled to infrastructure.** `Microsoft.Data.Sqlite` is imported into
-  the service; the retry loop pattern-matches a driver error code.
+- **Domain coupled to infrastructure, and it got worse.** `Microsoft.Data.Sqlite`
+  is imported into the service, the retry loop pattern-matches a driver error
+  code, and after the concurrency fix the service also owns connection
+  lifetime. Solution 1 keeps every one of those behind a port.
 - **Combinatorics get expensive.** Every extra validation branch is another full
   HTTP round-trip. Ten more input cases cost ~370 ms here and ~10 ms in solution 1.
 - **The test host is not production.** Test 9 proves it — `TestServer` rethrows

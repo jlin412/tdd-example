@@ -48,7 +48,10 @@ after it is consequence.
   things.
 - **A fake agrees with whatever you believed when you wrote it.** That is not a
   flaw to be fixed, it is the nature of the thing — which is why the contract
-  suite is not optional ceremony.
+  suite is not optional ceremony. It is also why some defects are invisible to
+  every isolated test you could write: the integrated solution found a real
+  thread-safety bug in a shared database connection, and a fake behaves under
+  concurrency however you imagined it would.
 - **The database is real, and needs nothing installed.** `Microsoft.Data.Sqlite`
   bundles its own native binaries. No server, no Docker, no `sqlite3` on PATH —
   `dotnet test` and you have a real SQL engine with real constraints.
@@ -68,8 +71,9 @@ The `csharp/` folder hands the mob exactly three things:
 
 Plus one thing that is **given**, not exercise:
 [`SqliteTestDatabase.cs`](csharp/SqliteTestDatabase.cs). It is unused until
-story 2, and it exists because SQLite in-memory databases die with their
-connection — a sharp edge that teaches nothing about TDD and eats ten minutes.
+story 2, and it exists because SQLite has two sharp edges that teach nothing
+about TDD and would eat ten minutes: an in-memory database dies with its
+connection, and a `SqliteConnection` is not thread-safe.
 
 On a fresh skeleton everything passes: STEP 1 is commented out and the STEP 0
 todos report as skipped. **Uncommenting STEP 1 is what gets you your first red**
@@ -164,10 +168,11 @@ them.
 | Direction | inside-out, domain first | outside-in, endpoint first |
 | Doubles | a fake repository **and** a stub generator | a stub generator, for one test |
 | `IUrlRepository` | yes | **none — nothing ever forced one** |
-| Files / test classes / tests | 6 / 3 / 30 | 3 / 1 / 13 |
-| Fast subset | **22 tests in ~10 ms** | none — every test ~37 ms |
+| Files / test classes / tests | 6 / 3 / 30 | 3 / 1 / 14 |
+| Fast subset | **22 tests in ~10 ms** | none — every test ~40 ms |
 | Proves "survives a restart" | no | **yes** |
 | Can simulate a DB failure | yes | no |
+| Found a concurrency defect | no | **yes** |
 
 Solution 1 is what this kata's checkpoints and stories are written to produce:
 menu items **(a)** and **(b)** taken, **(d)** and **(f)** declined, **(c)** and
@@ -189,7 +194,7 @@ of the retro is arguing about why.
 # from katas/url-shortener/, over a scratch copy to keep the skeleton pristine
 # copy ONE or the OTHER — both define UrlShortener and would collide
 cp solutions/csharp-isolated/*.cs   csharp/ && (cd csharp && dotnet test)   # 30 passing
-cp solutions/csharp-integrated/*.cs csharp/ && (cd csharp && dotnet test)   # 13 passing
+cp solutions/csharp-integrated/*.cs csharp/ && (cd csharp && dotnet test)   # 14 passing
 ```
 
 `SqliteTestDatabase.cs` deliberately lives only in `csharp/`, not in either
