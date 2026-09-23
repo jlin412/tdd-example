@@ -33,25 +33,35 @@ testing:
   teaches seam discovery under test pressure, hand-written fakes, and shared
   contract tests. It breaks house convention in three deliberate ways —
   **do not "fix" any of them**:
-  1. It adds a fourth NuGet package, `Microsoft.Data.Sqlite`. Every other kata
-     uses only its test framework. Here a real database that really enforces a
-     `PRIMARY KEY` *is* the subject matter — an in-memory fake double would
-     destroy the kata's entire point. The reference is raw ADO.NET, not EF Core,
-     on purpose (EF's InMemory provider does not enforce constraints at all).
-     The package ships in the skeleton `.csproj` from day one even though story
-     1 never touches SQL, because `solutions/` carries no build files.
+  1. It adds two packages beyond the test framework — `Microsoft.Data.Sqlite`
+     and `Microsoft.AspNetCore.TestHost` — plus a `FrameworkReference` to
+     `Microsoft.AspNetCore.App`. Every other kata uses only its test framework.
+     Here a real database that really enforces a `PRIMARY KEY`, and a real
+     server that really routes, *are* the subject matter; simulating either
+     would destroy the point being made. The reference is raw ADO.NET, not EF
+     Core, on purpose (EF's InMemory provider does not enforce constraints at
+     all). Both ship in the skeleton `.csproj` from day one even though stories
+     1–2 never touch them, because `solutions/` carries no build files.
   2. `csharp/SqliteTestDatabase.cs` is **given** infrastructure the mob does not
      write, and it deliberately does **not** exist in `solutions/csharp/`, so
      the documented `cp solutions/csharp/*.cs csharp/` leaves it in place.
-  3. It is the repo's first **three-story** kata, and story 3 tests HTTP
-     handlers as plain functions — no `Microsoft.NET.Sdk.Web`, no
-     `WebApplicationFactory`. That limitation is itself teaching material (the
-     story asks the mob to spot that it is a *fake of HTTP*).
+  3. It is the repo's first **three-story** kata. Story 3 drives a real
+     in-process server with a real `HttpClient`, but deliberately uses **neither
+     `Microsoft.NET.Sdk.Web` nor `WebApplicationFactory`** — the routes live in
+     an extension method on `IEndpointRouteBuilder` and the tests build their
+     own host with `UseTestServer()`. That keeps the project on a plain
+     `Microsoft.NET.Sdk` with no `Program.cs`, which matters because the web SDK
+     demands an entry point and it would collide with the one
+     `Microsoft.NET.Test.Sdk` generates. Don't "simplify" this to
+     `WebApplicationFactory<Program>`.
 
-  Its central claim is empirically verified and must stay that way: reverting
-  the fake's `TryAdd` guard to `_links[code] = url` makes 4 tests fail, all on
-  the in-memory path and none on SQLite. `solutions/README.md` documents this;
-  re-run it if you change either store.
+  **Two claims here are empirically verified and must stay that way.** Both are
+  documented with their exact output in `solutions/README.md`; re-run them if
+  you touch the relevant code:
+  - Reverting the fake's `TryAdd` guard to `_links[code] = url` fails **4**
+    tests, all on the in-memory path and none on SQLite.
+  - Changing the route `"/links"` to `"/lnks"` fails **7** tests, all in
+    `UrlEndpointsTests` and none in the service or contract suites.
 
 ## Commands
 

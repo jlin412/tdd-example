@@ -46,9 +46,11 @@ language-specific. Prerequisites: Python 3.9+, Node 18+ (Angular kata needs
 20.19+/22.12+/24+), JDK 17+ / Maven, .NET SDK 8+.
 
 Every kata uses only its language's test framework, with one deliberate
-exception: URL Shortener adds `Microsoft.Data.Sqlite`, because a real database
-that really enforces constraints *is* that kata's subject matter. It bundles its
-own native binaries, so there is nothing to install.
+exception: URL Shortener adds `Microsoft.Data.Sqlite` and
+`Microsoft.AspNetCore.TestHost`, because a real database that really enforces
+constraints — and a real server that really routes — *are* that kata's subject
+matter. Neither needs anything installed: SQLite bundles its own native
+binaries, and the test server runs in-process without opening a port.
 
 ## The loop (TL;DR)
 

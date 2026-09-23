@@ -86,7 +86,7 @@ a definition for 'Shorten'`, before a single test runs.
 | **CHECKPOINT #1 · pattern menu** | First the forcing prompt: *write the test that proves a link survives a restart.* They can't. **That** is what earns the seam. Then the mob picks **ONE** pattern from (a)–(f). |
 | **CHECKPOINT #2 · negative & edge** | Blank input, case sensitivity, and the collision that silently destroys a link while every test stays green. Ends on the cliffhanger. |
 | **STORY 2 · the database** | [UrlShortenerDatabaseStory.md](UrlShortenerDatabaseStory.md): real SQLite behind the same interface. Predict what breaks *before* running. Something green goes red. |
-| **STORY 3 · HTTP** | [UrlShortenerHttpStory.md](UrlShortenerHttpStory.md): handlers as plain functions. Status-code mapping, and deriving the test pyramid by counting. |
+| **STORY 3 · HTTP** | [UrlShortenerHttpStory.md](UrlShortenerHttpStory.md): real routes, driven by a real `HttpClient` against an in-process server. Status-code mapping, what the transport catches that nothing else can, and deriving the test pyramid by counting. |
 
 **Timing.** Story 1 fits the standard 60 minutes and ends on the cliffhanger.
 Story 2 is the 0:40–0:50 stretch slot if the mob moved fast, or the start of a
@@ -146,9 +146,11 @@ obvious call is the point of declining it out loud.
 |------|---------|-----|
 | `csharp/` | — | `dotnet test` |
 
-.NET SDK 8+. The first run restores `Microsoft.Data.Sqlite`, which needs network
-once; after that it is offline like everything else. A fresh skeleton is all
-green — **1 passed, 2 skipped**.
+.NET SDK 8+. The first run restores `Microsoft.Data.Sqlite` and
+`Microsoft.AspNetCore.TestHost`, which needs network once; after that it is
+offline like everything else. Neither needs anything installed — SQLite bundles
+its native binaries, and the test server runs in-process without opening a port.
+A fresh skeleton is all green — **1 passed, 2 skipped**.
 
 ## Revealing the solution
 

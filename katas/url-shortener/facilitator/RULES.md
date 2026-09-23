@@ -56,16 +56,20 @@ This file is the canonical list to compare theirs against, and it is what the
 - **R14.** The R8 case decision must give the **same answer from both stores**.
   If it doesn't, R8 was never a decision — it was inherited.
 
-## HTTP — R15–R18
+## HTTP — R15–R19
 
-- **R15.** `POST /links` → **201**, a `Location` header, and the code.
-- **R16.** `GET /links/{code}` → **200** and the original URL.
+- **R15.** `POST /links` with `{ "url": … }` → **201**, a `Location` header
+  pointing at the new link, and `{ "code": … }`.
+- **R16.** `GET /links/{code}` → **200** and `{ "url": … }`.
 - **R17.** An unknown code → **404**. A URL that isn't one → **400**. This is
   what makes R13 pay: a handler cannot map an error it has to reach into a
   database driver to identify.
 - **R18.** `POST` of an already-shortened URL → **whatever R6 decided**: 200
   with the existing code if the mob chose "same code", another 201 if they chose
   "fresh code". There is no third right answer.
+- **R19.** The endpoint tests drive a **real in-process server** with a real
+  `HttpClient`. Routing and model binding are genuinely exercised — which is the
+  only reason a misspelled route or a malformed body is catchable at all.
 
 ## Playing product owner
 
@@ -90,7 +94,7 @@ and move on — do not debate:
 
 **Out of scope, say no:** link expiry, click analytics, vanity/custom codes,
 authentication, rate limiting, deletion, sharding, async repositories,
-unit-of-work, real HTTP transport (story 3 is deliberately transport-free).
+unit-of-work, middleware, content negotiation beyond JSON.
 
 ## The forcing prompt (checkpoint #1)
 

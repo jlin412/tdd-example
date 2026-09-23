@@ -13,8 +13,8 @@ choices.
 | [`UrlRepositories.cs`](csharp/UrlRepositories.cs) | 1 + 2 | the hand-written fake, the SQLite store, the production generator |
 | [`UrlRepositoryContractTests.cs`](csharp/UrlRepositoryContractTests.cs) | 2 | **the shared contract suite** — the point of the kata |
 | [`UrlShortenerTests.cs`](csharp/UrlShortenerTests.cs) | 1 | the service's own rules, run against the fake |
-| [`UrlEndpoints.cs`](csharp/UrlEndpoints.cs) | 3 | handlers as plain functions |
-| [`UrlEndpointsTests.cs`](csharp/UrlEndpointsTests.cs) | 3 | status-code mapping, and nothing else |
+| [`UrlEndpoints.cs`](csharp/UrlEndpoints.cs) | 3 | real minimal-API routes |
+| [`UrlEndpointsTests.cs`](csharp/UrlEndpointsTests.cs) | 3 | a real in-process server, driven by `HttpClient` |
 
 ## Design shown here
 
@@ -101,16 +101,56 @@ is the only thing in the codebase that would ever say so.
 
 ## What the HTTP story adds
 
-Handlers as plain functions — no server, no routing, no JSON. `UrlEndpoints`
-catches `UnknownCodeException` and `ArgumentException`: **the service's own
-vocabulary**. That is menu item (e) being paid for. Without it, these handlers
-would have to catch `SqliteException` and switch on database error codes to
-choose between 404 and 500 — and would all break the day the store changed.
+Real minimal-API routes, driven by a real `HttpClient` against a real in-process
+server: routing, model binding, JSON serialization, status codes and headers are
+all genuinely exercised. No port is opened and nothing is installed.
 
-Count the tests: six here, eight in the service suite, six in the contract suite
-running twice. The mob derives the test pyramid by counting rather than being
-shown a diagram. The story is also honest that this layer is itself a *fake of
-HTTP* with its own fidelity gap — the same shape of problem, one level up.
+`UrlEndpoints` catches `UnknownCodeException` and `ArgumentException` — **the
+service's own vocabulary**. That is menu item (e) being paid for. Without it,
+these routes would have to catch `SqliteException` and switch on database error
+codes to choose between 404 and 500, and would all break the day the store
+changed.
+
+Two structural choices worth noting, both of which keep this kata on a plain
+`Microsoft.NET.Sdk` project with no `Program.cs`:
+
+- The routes live in an **extension method on `IEndpointRouteBuilder`**, so
+  production owns them while both a real host and a test host can mount them.
+- The tests build their own host with `UseTestServer()` rather than using
+  `WebApplicationFactory<Program>`, which would require an entry point — and
+  that entry point would collide with the one `Microsoft.NET.Test.Sdk`
+  generates.
+
+**The transport earns its keep, and that is verifiable.** Open
+`UrlEndpoints.cs` and change `"/links"` to `"/lnks"` — one character. Then run
+`dotnet test`:
+
+```
+Failed  UrlEndpointsTests.ShorteningAUrlIs201WithTheCodeAndALocation
+Failed  UrlEndpointsTests.ResolvingAKnownCodeIs200WithTheOriginalUrl
+Failed  UrlEndpointsTests.ShorteningSomethingThatIsNotAUrlIs400(notAUrl: "")
+Failed  UrlEndpointsTests.ShorteningSomethingThatIsNotAUrlIs400(notAUrl: "   ")
+Failed  UrlEndpointsTests.ShorteningAUrlThatIsAlreadyKnownIs201Again
+Failed  UrlEndpointsTests.AMalformedJsonBodyIs400WithoutReachingTheService
+Failed  UrlEndpointsTests.AMisspelledRouteIs404
+Failed!  - Failed: 7, Passed: 23
+```
+
+Seven failures, **every one of them in the HTTP suite**. The service and contract
+suites don't notice, because nothing about the domain changed — the service is
+perfect and completely unreachable. Tests that stopped short of the transport
+would have shipped that with a green board.
+
+`AMisspelledRouteIs404` and `AMalformedJsonBodyIs400WithoutReachingTheService`
+exist purely to pin down what the real transport buys: the first passes only
+because a real router looked at a real request, and the second is handled by the
+framework before any of this code runs.
+
+**And the cost is real too.** These tests are roughly an order of magnitude
+slower than the service tests — about 200ms for the suite without them, about
+600ms with. That is the argument for the pyramid in numbers rather than
+assertion. Count them: eight here, eight in the service suite, six in the
+contract suite running twice.
 
 ## Running the finished state
 
@@ -127,7 +167,8 @@ cp solutions/csharp/*.cs csharp/
 `csharp/` as given infrastructure, so the copy above leaves it untouched rather
 than creating a second copy that drifts.
 
-Verified on .NET 8 with `Microsoft.Data.Sqlite` 8.0.8: **28/28 passing**.
+Verified on .NET 8 with `Microsoft.Data.Sqlite` 8.0.8 and
+`Microsoft.AspNetCore.TestHost` 8.0.8: **30/30 passing**.
 
 (Use a scratch copy of the repo if you want to keep the skeleton pristine — the
 copy above overwrites `csharp/UrlShortener.cs` and `csharp/UrlShortenerTests.cs`.)

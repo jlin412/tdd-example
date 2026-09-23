@@ -21,6 +21,16 @@
          already references this. It bundles its own native binaries, so
          there is nothing for a participant to install. -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+
+    <!-- Story 3 only. The FrameworkReference is what lets a plain
+         Microsoft.NET.Sdk project use ASP.NET Core types without switching to
+         Microsoft.NET.Sdk.Web — which matters here, because the web SDK would
+         also demand an entry point and collide with the one the test SDK
+         generates. TestHost gives the endpoint tests a REAL in-process server
+         and a REAL HttpClient: real routing, real model binding, real status
+         codes. Nothing to install and no port is ever opened. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.8" />
   </ItemGroup>
 
 </Project>
