@@ -11,7 +11,7 @@ and no production feature work — changes here are almost always to the kata
 content itself (story text, skeleton comments/prompts, or reference
 solutions), not to app logic.
 
-Three katas exist today, each deliberately teaching a different *shape* of
+Four katas exist today, each deliberately teaching a different *shape* of
 testing:
 
 - **`katas/fizzbuzz/`** — polyglot: Python, JavaScript, Java, C#. Same kata,
@@ -28,6 +28,31 @@ testing:
   skeleton's checkpoint #2 and each solution's tests pin its own language's
   answer. Keep that per-language divergence when editing.
 
+- **`katas/url-shortener/`** — C#-only, on purpose. The only kata whose subject
+  under test has a **collaborator**: a service that depends on storage. It
+  teaches seam discovery under test pressure, hand-written fakes, and shared
+  contract tests. It breaks house convention in three deliberate ways —
+  **do not "fix" any of them**:
+  1. It adds a fourth NuGet package, `Microsoft.Data.Sqlite`. Every other kata
+     uses only its test framework. Here a real database that really enforces a
+     `PRIMARY KEY` *is* the subject matter — an in-memory fake double would
+     destroy the kata's entire point. The reference is raw ADO.NET, not EF Core,
+     on purpose (EF's InMemory provider does not enforce constraints at all).
+     The package ships in the skeleton `.csproj` from day one even though story
+     1 never touches SQL, because `solutions/` carries no build files.
+  2. `csharp/SqliteTestDatabase.cs` is **given** infrastructure the mob does not
+     write, and it deliberately does **not** exist in `solutions/csharp/`, so
+     the documented `cp solutions/csharp/*.cs csharp/` leaves it in place.
+  3. It is the repo's first **three-story** kata, and story 3 tests HTTP
+     handlers as plain functions — no `Microsoft.NET.Sdk.Web`, no
+     `WebApplicationFactory`. That limitation is itself teaching material (the
+     story asks the mob to spot that it is a *fake of HTTP*).
+
+  Its central claim is empirically verified and must stay that way: reverting
+  the fake's `TryAdd` guard to `_links[code] = url` makes 4 tests fail, all on
+  the in-memory path and none on SQLite. `solutions/README.md` documents this;
+  re-run it if you change either store.
+
 ## Commands
 
 Run from inside the relevant language folder.
@@ -38,6 +63,7 @@ Run from inside the relevant language folder.
 | JavaScript | `npm install` | `npm test` (= `vitest run`; `npm run test:watch` for watch mode) |
 | Java | — | `mvn test` |
 | C# | — | `dotnet test` |
+| C# (url-shortener) | — | `dotnet test` (first run restores `Microsoft.Data.Sqlite`; needs network once) |
 | TypeScript (stack) | `npm install` | `npm test` (= `vitest run`) **and `npm run typecheck`** (= `tsc --noEmit`) |
 | Angular | `npm install` | `npm test` (= `ng test`, runs Vitest via `@angular/build`) |
 
@@ -63,7 +89,7 @@ real skeleton with a solution unless asked.
 
 ## Architecture: how a kata is assembled
 
-Every kata (`katas/<name>/`) follows the same four-piece structure. When
+Every kata (`katas/<name>/`) follows the same five-piece structure. When
 editing one kata, keep the others (and the sibling pieces within the same
 kata) consistent with it — they're deliberately parallel.
 

@@ -20,6 +20,7 @@ is there to reveal once the session is done.
 | [FizzBuzz](katas/fizzbuzz/) — [Story](katas/fizzbuzz/FizzBuzzStory.md) · [Extended Story](katas/fizzbuzz/FizzBuzzExtendedStory.md) | The rhythm of TDD; inventing positive/boundary/edge/negative tests from a requirement; a team-chosen pattern refactor (rules engine, value object, DI, factory…); validation & type checking | ✅ Ready |
 | [Todo List (Angular)](katas/todo-list/) — [Story](katas/todo-list/TodoListStory.md) · [Edit stretch](katas/todo-list/TodoListEditStory.md) | **Frontend** TDD: driving a component through the DOM, signals-first state, DI, a team-chosen pattern refactor (signal store, smart/dumb split, computed, immutability) | ✅ Ready |
 | [Stack](katas/stack/) — [Story](katas/stack/StackStory.md) · [Extended Story](katas/stack/StackExtendedStory.md) | A **stateful object** tested through its own API: tests as sequences, proving LIFO, the empty-stack contract, and generics — plus how many safety nets your language actually gives you, which is a different answer in each of the four | ✅ Ready |
+| [URL Shortener (C#)](katas/url-shortener/) — [Story](katas/url-shortener/UrlShortenerStory.md) · [Database Story](katas/url-shortener/UrlShortenerDatabaseStory.md) · [HTTP Story](katas/url-shortener/UrlShortenerHttpStory.md) | The first kata with a **collaborator**: discovering a seam because a test can't be written, writing your own fake instead of importing a mocking library, and the day that fake lies to you — caught by one contract suite run against both it and a real database | ✅ Ready |
 | String Calculator | Parsing, custom delimiters, richer negative/edge cases | ⏳ Planned |
 
 ## Languages & tooling
@@ -39,8 +40,15 @@ adds a twist worth knowing about: the four languages disagree about how much a
 type system does for you, and it turns that disagreement into the exercise, so
 running it twice in two languages is a genuinely different session. **Todo
 List** is Angular-only on purpose, because it teaches *framework* testing
-(components, DOM, DI, signals). Prerequisites: Python 3.9+, Node 18+ (Angular
-kata needs 20.19+/22.12+/24+), JDK 17+ / Maven, .NET SDK 8+.
+(components, DOM, DI, signals), and **URL Shortener** is C#-only because its
+subject is a seam between a service and a real database rather than anything
+language-specific. Prerequisites: Python 3.9+, Node 18+ (Angular kata needs
+20.19+/22.12+/24+), JDK 17+ / Maven, .NET SDK 8+.
+
+Every kata uses only its language's test framework, with one deliberate
+exception: URL Shortener adds `Microsoft.Data.Sqlite`, because a real database
+that really enforces constraints *is* that kata's subject matter. It bundles its
+own native binaries, so there is nothing to install.
 
 ## The loop (TL;DR)
 

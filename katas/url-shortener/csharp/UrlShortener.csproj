@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+
+    <!-- The only non-test-framework dependency in this repo, and it is the
+         subject matter rather than convenience tooling: this kata is about
+         what happens when a real database disagrees with your in-memory
+         fake. It ships from day one even though the first story never
+         touches SQL, because solutions/ carries no build files of its own —
+         the reference SQLite repository can only compile if the skeleton
+         already references this. It bundles its own native binaries, so
+         there is nothing for a participant to install. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+  </ItemGroup>
+
+</Project>
