@@ -110,8 +110,13 @@ Then two follow-ups, both worth a red bar of their own:
 ## Where things live
 
 - Reference solution:
-  [solutions/csharp/UrlRepositories.cs](solutions/csharp/UrlRepositories.cs) and
-  [solutions/csharp/UrlRepositoryContractTests.cs](solutions/csharp/UrlRepositoryContractTests.cs)
+  [solutions/csharp-isolated/UrlRepositories.cs](solutions/csharp-isolated/UrlRepositories.cs) and
+  [solutions/csharp-isolated/UrlRepositoryContractTests.cs](solutions/csharp-isolated/UrlRepositoryContractTests.cs)
+
+There is also a solution that never writes a fake at all, and therefore never
+needs a contract suite — see
+[solutions/Solution2-Integrated.md](solutions/Solution2-Integrated.md). It pays
+for that elsewhere. Worth reading only after you have finished this story.
 
 ## What next
 

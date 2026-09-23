@@ -84,7 +84,9 @@ it.
 - Skeleton to fill in: [csharp/UrlShortener.cs](csharp/UrlShortener.cs) +
   [csharp/UrlShortenerTests.cs](csharp/UrlShortenerTests.cs)
 - Reference solution (reveal at the end):
-  [solutions/csharp/](solutions/csharp/)
+  [solutions/csharp-isolated/](solutions/csharp-isolated/) — and a second,
+  very different one in [solutions/csharp-integrated/](solutions/csharp-integrated/).
+  [solutions/README.md](solutions/README.md) compares them.
 - Run the tests: from `csharp/`, `dotnet test`.
 
 (There's a `SqliteTestDatabase.cs` sitting in that folder. Ignore it — it

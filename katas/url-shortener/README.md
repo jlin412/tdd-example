@@ -154,25 +154,47 @@ A fresh skeleton is all green — **1 passed, 2 skipped**.
 
 ## Revealing the solution
 
-`solutions/csharp/` holds one possible end state for all three stories. It takes
-**(a) port + fake** and **(b) injected generator**; declines **(d)** and **(f)**
-with reasons in the header comments; and picks up **(c)** and **(e)** where the
-later stories earn them.
+There are **two** complete solutions, and the second one is the retro. Both
+satisfy all three stories and every rule in `facilitator/RULES.md`; they
+disagree about nearly everything else, because different kinds of test drove
+them.
 
-Its contract choices — a fresh code per shortening, throwing on an unknown code,
-case-sensitive codes — are *one* set of answers, not a mandate. If your mob chose
-differently, the files won't drop in verbatim, and the interesting part of the
-retro is arguing about why.
+| | [Solution 1 — Isolated](solutions/Solution1-Isolated.md) | [Solution 2 — Integrated](solutions/Solution2-Integrated.md) |
+|---|---|---|
+| Direction | inside-out, domain first | outside-in, endpoint first |
+| Doubles | a fake repository **and** a stub generator | a stub generator, for one test |
+| `IUrlRepository` | yes | **none — nothing ever forced one** |
+| Files / test classes / tests | 6 / 3 / 30 | 3 / 1 / 13 |
+| Fast subset | **22 tests in ~10 ms** | none — every test ~37 ms |
+| Proves "survives a restart" | no | **yes** |
+| Can simulate a DB failure | yes | no |
+
+Solution 1 is what this kata's checkpoints and stories are written to produce:
+menu items **(a)** and **(b)** taken, **(d)** and **(f)** declined, **(c)** and
+**(e)** picked up where the later stories earn them.
+
+Solution 2 exists because the obvious objection to all of that — *in a real
+system everything is already wired together, so why not just test it that way?* —
+is a good one with a real school of thought behind it. Rather than answer it in
+prose, the kata answers it with a second working solution and measured numbers.
+[solutions/README.md](solutions/README.md) compares them, and each
+`Solution*.md` gives its own test order, rationale, pros and cons.
+
+Their shared contract choices — a fresh code per shortening, throwing on an
+unknown code, case-sensitive codes — are *one* set of answers, not a mandate. If
+your mob chose differently, neither drops in verbatim, and the interesting part
+of the retro is arguing about why.
 
 ```bash
 # from katas/url-shortener/, over a scratch copy to keep the skeleton pristine
-cp solutions/csharp/*.cs csharp/
-(cd csharp && dotnet test)
+# copy ONE or the OTHER — both define UrlShortener and would collide
+cp solutions/csharp-isolated/*.cs   csharp/ && (cd csharp && dotnet test)   # 30 passing
+cp solutions/csharp-integrated/*.cs csharp/ && (cd csharp && dotnet test)   # 13 passing
 ```
 
-`SqliteTestDatabase.cs` deliberately lives only in `csharp/`, not in
-`solutions/`, so the copy above leaves it in place rather than creating two
-copies that drift apart.
+`SqliteTestDatabase.cs` deliberately lives only in `csharp/`, not in either
+solution folder, so the copies above leave it in place rather than creating
+copies that drift apart. Both solutions use it.
 
 Keep them closed until the retro. The solutions deliberately *show their
 judgment* — which patterns they took, which they declined, and why — so the retro

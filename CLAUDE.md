@@ -43,8 +43,8 @@ testing:
      all). Both ship in the skeleton `.csproj` from day one even though stories
      1–2 never touch them, because `solutions/` carries no build files.
   2. `csharp/SqliteTestDatabase.cs` is **given** infrastructure the mob does not
-     write, and it deliberately does **not** exist in `solutions/csharp/`, so
-     the documented `cp solutions/csharp/*.cs csharp/` leaves it in place.
+     write, and it deliberately does **not** exist in either solution folder, so
+     the documented `cp solutions/csharp-*/*.cs csharp/` leaves it in place.
   3. It is the repo's first **three-story** kata. Story 3 drives a real
      in-process server with a real `HttpClient`, but deliberately uses **neither
      `Microsoft.NET.Sdk.Web` nor `WebApplicationFactory`** — the routes live in
@@ -55,13 +55,27 @@ testing:
      `Microsoft.NET.Test.Sdk` generates. Don't "simplify" this to
      `WebApplicationFactory<Program>`.
 
-  **Two claims here are empirically verified and must stay that way.** Both are
-  documented with their exact output in `solutions/README.md`; re-run them if
-  you touch the relevant code:
-  - Reverting the fake's `TryAdd` guard to `_links[code] = url` fails **4**
-    tests, all on the in-memory path and none on SQLite.
+  4. It is the only kata with **two complete solutions**, and they are not
+     variants of one design — they are opposing answers to "isolated or
+     integrated tests?". `solutions/csharp-isolated/` (6 files, 3 test classes,
+     30 tests) and `solutions/csharp-integrated/` (3 files, 1 test class, 13
+     tests). The integrated one deliberately has **no `IUrlRepository` and no
+     fake**, because outside-in TDD against a real database never forces a seam
+     — that absence is the teaching point, so don't "complete" it by adding one.
+     Each has a `solutions/Solution*.md` giving its test order, rationale and
+     pros/cons. They each define `UrlShortener`, so only one may be copied over
+     the skeleton at a time.
+
+  **Three claims here are empirically verified and must stay that way.** All are
+  documented with their exact output in `solutions/README.md` and the
+  `Solution*.md` files; re-run them if you touch the relevant code:
+  - Reverting the isolated fake's `TryAdd` guard to `_links[code] = url` fails
+    **4** tests, all on the in-memory path and none on SQLite.
   - Changing the route `"/links"` to `"/lnks"` fails **7** tests, all in
     `UrlEndpointsTests` and none in the service or contract suites.
+  - The measured costs the solution docs argue from: real SQLite ≈ **0.2 ms**
+    per test, the web host ≈ **29–37 ms** per test. The whole "which ratio?"
+    discussion rests on that 170× gap, so re-measure rather than reword it.
 
 ## Commands
 

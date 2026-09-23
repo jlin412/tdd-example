@@ -138,5 +138,7 @@ write it.
 ## Where things live
 
 - Reference solution:
-  [solutions/csharp/UrlEndpoints.cs](solutions/csharp/UrlEndpoints.cs) +
-  [solutions/csharp/UrlEndpointsTests.cs](solutions/csharp/UrlEndpointsTests.cs)
+  [solutions/csharp-isolated/UrlEndpoints.cs](solutions/csharp-isolated/UrlEndpoints.cs) +
+  [solutions/csharp-isolated/UrlEndpointsTests.cs](solutions/csharp-isolated/UrlEndpointsTests.cs)
+- The alternative, where this suite is the ONLY suite:
+  [solutions/Solution2-Integrated.md](solutions/Solution2-Integrated.md)
