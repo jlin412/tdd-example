@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The smoke test's backend: the INTEGRATED reference solution, served for
+       real. A separate project on purpose. The kata's own csharp/ project is a
+       test project, and the web SDK's entry point would collide with the one
+       Microsoft.NET.Test.Sdk generates — here there is no test SDK, so a
+       Program.cs is fine.
+
+       The integrated solution rather than the isolated one because it opens a
+       connection per operation; the isolated SqliteUrlRepository shares one
+       SqliteConnection, which is not thread-safe behind a real server. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Kata</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../solutions/csharp-integrated/UrlShortener.cs" Link="Reference/UrlShortener.cs" />
+    <Compile Include="../../solutions/csharp-integrated/UrlEndpoints.cs" Link="Reference/UrlEndpoints.cs" />
+    <Compile Include="../../csharp/SqliteTestDatabase.cs" Link="Reference/SqliteTestDatabase.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+  </ItemGroup>
+
+</Project>
