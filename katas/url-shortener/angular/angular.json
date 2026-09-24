@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "todoKata": {
+    "urlShortenerKata": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -56,10 +56,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "todoKata:build:production"
+              "buildTarget": "urlShortenerKata:build:production"
             },
             "development": {
-              "buildTarget": "todoKata:build:development"
+              "buildTarget": "urlShortenerKata:build:development"
             }
           },
           "defaultConfiguration": "development"

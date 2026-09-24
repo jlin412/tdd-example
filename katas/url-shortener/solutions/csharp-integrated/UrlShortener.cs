@@ -6,8 +6,8 @@ namespace Kata;
 // URL Shortener kata — reference solution 2 of 2: INTEGRATED.
 // See ../Solution2-Integrated.md for the test order and the rationale.
 //
-// Read this next to solutions/csharp-isolated/UrlShortener.cs. Same three
-// stories, same requirements, same rules — and a visibly different design,
+// Read this next to solutions/csharp-isolated/UrlShortener.cs. Same product
+// story, same requirements, same rules — and a visibly different design,
 // because it was driven by a different kind of test.
 //
 // THE THING TO NOTICE FIRST: there is no IUrlRepository in this file, and no
@@ -31,11 +31,19 @@ namespace Kata;
 //   pattern-matching on a database driver's integer error code. Swap the store
 //   and you edit the service. Solution 1's service would not change by a line.
 //
-// ONE SEAM SURVIVES: IShortCodeGenerator. Not on principle — because a test
-// demanded it. "Two links that collide must not overwrite each other" is a
-// state you cannot reach by asking a real random generator nicely, and that is
-// exactly the kind of test that justifies a double. One seam, one reason,
-// written down.
+// TWO SEAMS SURVIVE, each because a test demanded it, not on principle:
+//   · IShortCodeGenerator — "two links that collide must not overwrite each
+//     other" is a state you cannot reach by asking a real random generator
+//     nicely.
+//   · TimeProvider (the extended story) — "the table is ordered by when each
+//     link was created, not by when the request arrived" can only be shown
+//     with a clock that disagrees with the order of arrival, and the real one
+//     never will on demand. .NET 8's own abstraction; the fake is a five-line
+//     subclass in the test file.
+// Two seams, two reasons, written down.
+
+/// A link as the table needs it.
+public sealed record Link(string Code, string Url, DateTimeOffset CreatedAt);
 
 public class UnknownCodeException : Exception
 {
@@ -78,6 +86,7 @@ public class UrlShortener
 
     private readonly string _connectionString;
     private readonly IShortCodeGenerator _generator;
+    private readonly TimeProvider _clock;
 
     // A connection STRING, not a connection — and that is not a detail.
     //
@@ -93,10 +102,11 @@ public class UrlShortener
     // from one thread, and it does not depend on any rule in the story. It is
     // a property of the wiring — which is exactly what an integrated test is
     // for, and the strongest single argument in this solution's favour.
-    public UrlShortener(string connectionString, IShortCodeGenerator generator)
+    public UrlShortener(string connectionString, IShortCodeGenerator generator, TimeProvider clock)
     {
         _connectionString = connectionString;
         _generator = generator;
+        _clock = clock;
     }
 
     // Opening per operation is cheap: Microsoft.Data.Sqlite pools connections,
@@ -108,7 +118,9 @@ public class UrlShortener
         return connection;
     }
 
-    public string Shorten(string longUrl)
+    // Hands back the whole link it made — the HTTP layer answers a create with
+    // it (R24), and only this method knows the moment it was created.
+    public Link Shorten(string longUrl)
     {
         if (string.IsNullOrWhiteSpace(longUrl))
         {
@@ -117,18 +129,21 @@ public class UrlShortener
 
         for (var attempt = 0; attempt < MaxMintingAttempts; attempt++)
         {
-            var code = _generator.Next();
+            var link = new Link(_generator.Next(), longUrl, _clock.GetUtcNow());
 
             using var connection = OpenConnection();
             using var command = connection.CreateCommand();
-            command.CommandText = "INSERT INTO links (code, url) VALUES ($code, $url)";
-            command.Parameters.AddWithValue("$code", code);
-            command.Parameters.AddWithValue("$url", longUrl);
+            command.CommandText =
+                "INSERT INTO links (code, url, created_at) VALUES ($code, $url, $createdAt)";
+            command.Parameters.AddWithValue("$code", link.Code);
+            command.Parameters.AddWithValue("$url", link.Url);
+            // UTC ticks sort exactly as the instants they stand for.
+            command.Parameters.AddWithValue("$createdAt", link.CreatedAt.UtcTicks);
 
             try
             {
                 command.ExecuteNonQuery();
-                return code;
+                return link;
             }
             catch (SqliteException e) when (e.SqliteErrorCode == SqliteConstraintViolation)
             {
@@ -159,5 +174,30 @@ public class UrlShortener
         command.Parameters.AddWithValue("$code", shortCode);
 
         return command.ExecuteScalar() as string ?? throw new UnknownCodeException(shortCode);
+    }
+
+    public IReadOnlyList<Link> List()
+    {
+        // Newest first by creation time; the later-saved of two links created
+        // in the same instant first. rowid only ever grows for this table, so
+        // it is the "saved later" tie-break. In solution 1 this ORDER BY had a
+        // twin in the in-memory store and a contract test to keep the two in
+        // step; here it is the only copy there is.
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT code, url, created_at FROM links ORDER BY created_at DESC, rowid DESC";
+
+        using var reader = command.ExecuteReader();
+        var links = new List<Link>();
+        while (reader.Read())
+        {
+            links.Add(new Link(
+                reader.GetString(0),
+                reader.GetString(1),
+                new DateTimeOffset(reader.GetInt64(2), TimeSpan.Zero)));
+        }
+
+        return links;
     }
 }

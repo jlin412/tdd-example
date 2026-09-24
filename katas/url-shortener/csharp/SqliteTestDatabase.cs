@@ -5,8 +5,9 @@ namespace Kata;
 // ════════════════════════════════════════════════════════════════════
 // GIVEN TO YOU — test infrastructure, not part of the exercise.
 // ════════════════════════════════════════════════════════════════════
-// You do not need this until STORY 2 (UrlShortenerDatabaseStory.md). Until
-// then it just sits here, unused. Nothing in story 1 touches SQL.
+// You do not need this until your tests demand that a link outlive the process
+// that created it (checkpoint #3 in UrlShortenerTests.cs). Until then it just
+// sits here, unused.
 //
 // It exists because SQLite has two sharp edges that teach nothing about TDD,
 // and between them they would eat ten minutes of your session:
@@ -47,6 +48,11 @@ namespace Kata;
 //
 // The schema is given too. It is a premise of the kata, not a lesson in it —
 // but do read it, because one line of it is going to matter a great deal.
+//
+// created_at is there from day one for the same reason the csproj references
+// its packages from day one: the reference solutions carry no copy of this
+// file, so the column the extended story needs has to exist already. It is
+// nullable because nothing writes it until then.
 public sealed class SqliteTestDatabase : IDisposable
 {
     /// A connection you may use directly — single-threaded only.
@@ -74,8 +80,9 @@ public sealed class SqliteTestDatabase : IDisposable
         // non-INTEGER PRIMARY KEY column still accepts NULLs without it.
         schema.CommandText = """
             CREATE TABLE links (
-                code TEXT PRIMARY KEY NOT NULL,
-                url  TEXT NOT NULL
+                code       TEXT PRIMARY KEY NOT NULL,
+                url        TEXT NOT NULL,
+                created_at INTEGER
             )
             """;
         schema.ExecuteNonQuery();

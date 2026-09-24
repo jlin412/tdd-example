@@ -1,5 +1,5 @@
 {
-  "name": "todo-kata",
+  "name": "url-shortener-kata",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",

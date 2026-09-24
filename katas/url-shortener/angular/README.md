@@ -1,14 +1,16 @@
-# TodoKata
+# URL Shortener — frontend track
 
-> **This is the workspace for the Todo List TDD kata — the brief lives one level up.**
+> **This is the workspace for the URL Shortener kata's frontend track — the brief lives one level up.**
 >
-> - **Start here:** [../TodoListStory.md](../TodoListStory.md) — the standard list
-> - **Then:** [../TodoListEditStory.md](../TodoListEditStory.md) — the inline-edit stretch
-> - **Running the session:** [../README.md](../README.md) — session flow, pattern
->   menu, contract decisions
+> - **Start here:** [../UrlShortenerStory.md](../UrlShortenerStory.md) — the product
+> - **Then:** [../UrlShortenerExtendedStory.md](../UrlShortenerExtendedStory.md) — the table
+> - **Running the session:** [../README.md](../README.md) — the two tracks, session
+>   flow, pattern menus, contract decisions
 >
-> Fill in [`src/app/todo-list.ts`](src/app/todo-list.ts) and
-> [`src/app/todo-list.spec.ts`](src/app/todo-list.spec.ts). Write the test list
+> Fill in [`src/app/shortener-page.ts`](src/app/shortener-page.ts) and
+> [`src/app/shortener-page.spec.ts`](src/app/shortener-page.spec.ts). The service
+> behind the page is given as a contract, [`src/app/link-service.ts`](src/app/link-service.ts),
+> with no implementation — your tests stand in for it. Write the test list
 > (STEP 0) first, then uncomment STEP 1's assertion for your first red:
 >
 > ```bash

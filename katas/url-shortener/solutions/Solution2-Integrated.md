@@ -6,10 +6,11 @@ Code: [`csharp-integrated/`](csharp-integrated/) · Compare with
 [Solution1-Isolated.md](Solution1-Isolated.md).
 
 This is the **outside-in** solution. Every test drives a real in-process server,
-over real HTTP, against a real SQLite database. There are no fakes — with one
-exception, introduced for one reason, and the reason is written down.
+over real HTTP, against a real SQLite database. There are no fakes — with two
+exceptions, each introduced for one reason, and the reasons are written down.
 
-It satisfies exactly the same three stories and the same numbered rules. It is
+It satisfies exactly the same story, the same extended story and the same
+numbered rules. It is
 not a shortcut, and it is not "the lazy version". It is what a team that holds
 to *test through the thing you ship* produces when it TDDs this kata honestly.
 
@@ -29,12 +30,16 @@ whatever is needed to satisfy it.
 | 7 | codes are case-sensitive | decided once, because there is only one store to decide it in |
 | 8 | a repeated code mints another rather than overwriting | **the one seam.** A real generator will not collide on demand, so `IShortCodeGenerator` is introduced *here* — the only double in the solution, justified by a state that is otherwise unreachable |
 | 9 | giving up beats looping forever | and this is where the suite earns its keep: see below |
-| 10 | a misspelled route is 404 | real routing |
-| 11 | a malformed JSON body is 400 | real model binding, handled by the framework before any of this code runs |
 | 10 | **concurrent requests never issue the same code twice** | fifty requests in flight at once over a deliberately small code space. See below — this one found a real defect |
 | 11 | a misspelled route is 404 | real routing |
 | 12 | a malformed JSON body is 400 | real model binding, handled by the framework before any of this code runs |
 | 13 | links survive the process that created them | tear the whole app down, build a new one over the same database, resolve the old code. **R4 proven rather than promised** — solution 1 cannot write this test at all |
+| — | **the extended story: the table** | |
+| 14 | the table is empty before anything is shortened | a list route, and an empty list rather than a 404 |
+| 15 | the table lists every link newest first | **the second seam.** Asserting *when* each link was made needs a clock the test controls, so `TimeProvider` arrives here — .NET 8's own abstraction, faked by a five-line subclass |
+| 16 | two links created in the same instant list the later first | a tie rule, and `rowid` as its tie-break — decided once, because there is one store |
+| 17 | the table follows creation time even when servers' clocks disagree | restart onto a clock that runs *behind*: the link that arrived later was stamped earlier, and the table follows the stamp. No real clock does this on demand, which is what justifies the seam |
+| 18 | creating a link answers with the whole link | R24 — `Shorten` hands back the `Link` it made, and `POST` answers with it. No test in either track asked for this; the end-to-end smoke test did, the first time the page's contract met this API |
 
 **Tests 9, 10 and 13 are the ones to read.** Test 13 is the requirement that
 *motivates* solution 1's entire architecture, and solution 1 can never actually
@@ -60,7 +65,7 @@ Sit with what it would have taken to find that any other way:
   not want;
 - it is invisible when the service is called directly from one thread, which is
   every test in solution 1;
-- it does not violate any rule in any of the three stories, so no amount of
+- it does not violate any rule in the story, so no amount of
   requirements analysis would have produced a test for it.
 
 It is a property of the **wiring**, and it was found by a test that exercised the
@@ -84,7 +89,7 @@ a hunch is speculative design, and YAGNI won on the evidence available.
 What that buys and costs:
 
 - **Bought:** no double can lie to you, because there is no double. The bug
-  solution 1 spends a whole story on — a fake that silently overwrites a taken
+  solution 1 spends a whole checkpoint on — a fake that silently overwrites a taken
   code — is not *mitigated* here, it is **unreachable**. There is also no
   contract suite to maintain, because there is nothing to hold to a contract.
 - **Cost:** `UrlShortener` now knows what SQLite is. It catches `SqliteException`
@@ -92,19 +97,21 @@ What that buys and costs:
   minting links imports a database driver. Swap the store and you edit the
   domain; solution 1's service would not change by a line.
 
-One seam survives — `IShortCodeGenerator` — and only because test 8 demanded it.
-That is the whole rule this solution follows: **a double needs a test that
-cannot be written without it.**
+Two seams survive — `IShortCodeGenerator` because test 8 demanded it, and
+`TimeProvider` because tests 15 and 17 did. That is the whole rule this solution
+follows: **a double needs a test that cannot be written without it.** Note what
+the clock did *not* need: a contract suite. There is one store, so its ORDER BY
+has no twin to drift from — the same trade as everywhere else in this design.
 
 ## Pros
 
 - **It tests what you ship.** Routing, binding, serialization, DI wiring, SQL,
   constraints and collation are exercised on every line. Both of the "green but
   broken" failure modes solution 1 has to guard against are impossible here.
-- **It can prove persistence.** Test 12 restarts the application. That is the
+- **It can prove persistence.** Test 13 restarts the application. That is the
   requirement the whole kata turns on, and only this solution verifies it.
-- **Far less code.** 3 files against 6; 1 test class against 3; 14 test
-  executions against 30 — for identical requirements.
+- **Far less code.** 3 files against 6; 1 test class against 3; 19 test
+  executions against 39 — for identical requirements.
 - **Enormous refactoring freedom.** The tests touch nothing but HTTP, so every
   decision underneath is yours to change. Merge the service into the endpoint,
   split it into five classes, swap the SQL — the suite neither knows nor cares.
@@ -117,11 +124,11 @@ cannot be written without it.**
 
 ## Cons
 
-- **There is no fast tier.** Every test costs ~40 ms because each one builds and
-  starts a host. Solution 1 runs 22 of its 30 tests in about 10 ms *combined*.
-  Today the totals are comparable; at ten times the requirements this suite is
-  ~5 s and solution 1's inner loop is still ~100 ms. **That gap is the whole
-  argument**, and it compounds.
+- **There is no fast tier.** Every test costs ~9 ms because each one builds and
+  starts a host. Solution 1 runs 29 of its 39 tests in about 10 ms *combined*.
+  Today the totals are comparable (~260 ms against ~210 ms); at ten times the
+  requirements this suite is ~2 s and solution 1's inner loop is still ~100 ms.
+  **That gap is the whole argument**, and it compounds.
 - **Weak at driving design.** The tests never pushed back on anything, which is
   why no port exists. Sometimes that is YAGNI working correctly; sometimes it is
   a missing abstraction nobody was told about. The tests cannot tell you which.
@@ -135,14 +142,14 @@ cannot be written without it.**
   code, and after the concurrency fix the service also owns connection
   lifetime. Solution 1 keeps every one of those behind a port.
 - **Combinatorics get expensive.** Every extra validation branch is another full
-  HTTP round-trip. Ten more input cases cost ~370 ms here and ~10 ms in solution 1.
+  HTTP round-trip. Ten more input cases cost ~90 ms here and ~1 ms in solution 1.
 - **The test host is not production.** Test 9 proves it — `TestServer` rethrows
   where a deployed app would return 500. A fake of the transport, with its own
   fidelity gap.
 
 ## Choose this when
 
-Integrated setup is genuinely cheap in your stack (in-memory SQLite is ~0.2 ms —
+Integrated setup is genuinely cheap in your stack (in-memory SQLite is ~0.1 ms —
 it *is* cheap here) · the suite will stay small · the wiring is where your bugs
 actually come from · the team wants maximum freedom to restructure · or the code
 is stable and being verified rather than designed.
@@ -152,9 +159,9 @@ is stable and being verified rather than designed.
 Neither column wins outright, and the ratio should follow **measured** cost
 rather than a diagram. In this kata:
 
-- integrating the **database** costs ~0.2 ms → there is almost no argument for a
+- integrating the **database** costs ~0.1 ms → there is almost no argument for a
   fake repository, and solution 1's is the more questionable half of its design;
-- integrating the **web host** costs ~37 ms → 170× more, and that is what you
+- integrating the **web host** costs ~9 ms → about 85× more, and that is what you
   should be selective about.
 
 Which points at a third design neither solution shows: **real database, real

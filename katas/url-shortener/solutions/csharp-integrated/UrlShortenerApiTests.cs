@@ -24,18 +24,20 @@ namespace Kata;
 // WHAT IS DELIBERATELY ABSENT: any fake store. There is nothing in this
 // solution that can lie to you about how storage behaves, because there is
 // nothing standing in for storage. The failure mode solution 1 spends a whole
-// story on — a fake that silently overwrites a taken code while the database
-// refuses it — is not mitigated here. It is unreachable.
+// checkpoint on — a fake that silently overwrites a taken code while the
+// database refuses it — is not mitigated here. It is unreachable.
 //
-// WHAT IS PRESENT, AND WHY: a stub generator. One double, introduced for one
-// reason — a code collision is a state you cannot reach by asking a real
-// random generator nicely. That is the test that justifies a seam, and it is
-// worth being able to say so in one sentence. Everything else runs against the
-// real thing.
+// WHAT IS PRESENT, AND WHY: two doubles, each introduced for one reason. A
+// stub generator, because a code collision is a state you cannot reach by
+// asking a real random generator nicely. A fake clock (the extended story),
+// because "ordered by creation time, not by arrival" can only be shown with a
+// clock that disagrees with the order requests arrived in. Each is the test
+// that justifies a seam, and it is worth being able to say so in one sentence.
+// Everything else runs against the real thing.
 public class UrlShortenerApiTests : IAsyncLifetime
 {
     // ── Test doubles, and the rule for having them ────────────────────
-    // A double needs a test that cannot be written without it. These two
+    // A double needs a test that cannot be written without it. These three
     // qualify; nothing else in the solution does.
 
     /// Hands out exactly these codes, in order. For pinning a collision.
@@ -45,6 +47,19 @@ public class UrlShortenerApiTests : IAsyncLifetime
         public FixedCodes(params string[] codes) => _codes = new Queue<string>(codes);
         public string Next() => _codes.Dequeue();
     }
+
+    /// A clock that says whatever the test tells it to. For the table, whose
+    /// order is by creation time — something the real clock will never get
+    /// "wrong" on demand.
+    private sealed class FakeClock : TimeProvider
+    {
+        private DateTimeOffset _now;
+        public FakeClock(DateTimeOffset now) => _now = now;
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan by) => _now += by;
+    }
+
+    private static readonly DateTimeOffset Noon = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
     /// A deliberately tiny code space, so concurrent requests genuinely
     /// contend instead of scattering across a billion possibilities.
@@ -69,7 +84,7 @@ public class UrlShortenerApiTests : IAsyncLifetime
     // own body — see RestartTheApplication below.
     public Task InitializeAsync() => StartTheApplication(new RandomShortCodeGenerator());
 
-    private async Task StartTheApplication(IShortCodeGenerator generator)
+    private async Task StartTheApplication(IShortCodeGenerator generator, TimeProvider? clock = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -79,7 +94,7 @@ public class UrlShortenerApiTests : IAsyncLifetime
         // thread-safe — see the note in UrlShortener's constructor, and the
         // concurrency test that found it.
         builder.Services.AddSingleton(
-            new UrlShortener(_database.ConnectionString, generator));
+            new UrlShortener(_database.ConnectionString, generator, clock ?? TimeProvider.System));
 
         _app = builder.Build();
         _app.MapUrlEndpoints();
@@ -90,10 +105,11 @@ public class UrlShortenerApiTests : IAsyncLifetime
     /// Tears the whole web application down and builds a new one over the SAME
     /// database. Named for what it does, because in two tests below the restart
     /// is not setup — it is the thing being tested.
-    private async Task RestartTheApplication(IShortCodeGenerator mintingCodesFrom)
+    private async Task RestartTheApplication(
+        IShortCodeGenerator mintingCodesFrom, TimeProvider? tellingTimeBy = null)
     {
         await _app.DisposeAsync();
-        await StartTheApplication(mintingCodesFrom);
+        await StartTheApplication(mintingCodesFrom, tellingTimeBy);
     }
 
     public async Task DisposeAsync()
@@ -103,10 +119,10 @@ public class UrlShortenerApiTests : IAsyncLifetime
     }
 
     // ── Talking to the API ────────────────────────────────────────────
-    // These deliberately do NOT use ShortenRequest / ShortenResponse /
+    // These deliberately do NOT use ShortenRequest / LinkResponse /
     // ResolveResponse — the production records. A test that deserializes into
     // the very type it is meant to be pinning cannot detect a change to it:
-    // rename ShortenResponse.Code tomorrow and every assertion would still
+    // rename LinkResponse.Code tomorrow and every assertion would still
     // compile and still pass while the published JSON silently changed shape.
     //
     // So the wire contract is spelled out here, by hand, in the only place it
@@ -124,6 +140,21 @@ public class UrlShortenerApiTests : IAsyncLifetime
 
     private async Task<string> ResolveUrlAt(string code) =>
         await FieldOf(await _client.GetAsync($"/links/{code}"), "url");
+
+    /// The table, read off the wire by property name — code, url, createdAt.
+    private async Task<(string Code, string Url, DateTimeOffset CreatedAt)[]> TheTable()
+    {
+        var response = await _client.GetAsync("/links");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return (await response.Content.ReadFromJsonAsync<JsonElement>())
+            .EnumerateArray()
+            .Select(row => (
+                row.GetProperty("code").GetString()!,
+                row.GetProperty("url").GetString()!,
+                row.GetProperty("createdAt").GetDateTimeOffset()))
+            .ToArray();
+    }
 
     // ── 1. the round trip ─────────────────────────────────────────────
     // The first test written, and it covers more ground than solution 1's
@@ -308,5 +339,76 @@ public class UrlShortenerApiTests : IAsyncLifetime
         await RestartTheApplication(mintingCodesFrom: new RandomShortCodeGenerator());
 
         Assert.Equal("https://example.com/first", await ResolveUrlAt(code));
+    }
+
+    // ── 8. the extended story: the table ──────────────────────────────
+    [Fact] // [positive] (R15/R24) — a create answers with the whole link
+    public async Task CreatingALinkAnswersWithTheWholeLink()
+    {
+        // Added after the end-to-end smoke test put the page's contract beside
+        // this API: the page promises callers the url and createdAt of what it
+        // made, and a bare {code} could not keep that promise.
+        await RestartTheApplication(new FixedCodes("abc123"), tellingTimeBy: new FakeClock(Noon));
+
+        var created = await Post("https://example.com/first");
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var link = await created.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("abc123", link.GetProperty("code").GetString());
+        Assert.Equal("https://example.com/first", link.GetProperty("url").GetString());
+        Assert.Equal(Noon, link.GetProperty("createdAt").GetDateTimeOffset());
+    }
+
+    [Fact] // [edge] (R21/R23) — an empty table is a list, not a 404
+    public async Task TheTableIsEmptyBeforeAnythingIsShortened()
+    {
+        Assert.Empty(await TheTable());
+    }
+
+    [Fact] // [positive] (R20/R21/R23) — newest first, stamped with when it was made
+    public async Task TheTableListsEveryLinkNewestFirst()
+    {
+        var clock = new FakeClock(Noon);
+        await RestartTheApplication(new RandomShortCodeGenerator(), tellingTimeBy: clock);
+
+        var first = await CodeOf(await Post("https://example.com/first"));
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var second = await CodeOf(await Post("https://example.com/second"));
+
+        Assert.Equal(
+            new[]
+            {
+                (second, "https://example.com/second", Noon.AddMinutes(1)),
+                (first, "https://example.com/first", Noon),
+            },
+            await TheTable());
+    }
+
+    [Fact] // [boundary] (R22) — a clock can repeat itself, just like a generator
+    public async Task TwoLinksCreatedInTheSameInstantListTheLaterFirst()
+    {
+        await RestartTheApplication(new RandomShortCodeGenerator(), tellingTimeBy: new FakeClock(Noon));
+
+        var first = await CodeOf(await Post("https://example.com/first"));
+        var second = await CodeOf(await Post("https://example.com/second"));
+
+        Assert.Equal(new[] { second, first }, (await TheTable()).Select(row => row.Code));
+    }
+
+    [Fact] // [positive] (R4/R21) — ordered by creation time, not by arrival
+    public async Task TheTableFollowsCreationTimeEvenWhenServersClocksDisagree()
+    {
+        // The test that earns the clock seam. A link made on a server whose
+        // clock runs ahead, then one made after a restart on a server whose
+        // clock runs behind: the second ARRIVED later, but was stamped earlier,
+        // and the table follows the stamp. No real clock does this on demand.
+        await RestartTheApplication(new RandomShortCodeGenerator(),
+            tellingTimeBy: new FakeClock(Noon.AddMinutes(5)));
+        var madeAhead = await CodeOf(await Post("https://example.com/ahead"));
+
+        await RestartTheApplication(new RandomShortCodeGenerator(), tellingTimeBy: new FakeClock(Noon));
+        var madeBehind = await CodeOf(await Post("https://example.com/behind"));
+
+        Assert.Equal(new[] { madeAhead, madeBehind }, (await TheTable()).Select(row => row.Code));
     }
 }

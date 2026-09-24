@@ -8,23 +8,24 @@ using Xunit;
 
 namespace Kata;
 
-// URL Shortener kata — reference test suite for the HTTP layer (R15–R19).
-// See UrlShortenerHttpStory.md.
+// URL Shortener kata — reference test suite for the HTTP layer (R15–R19, R23–R24).
+// Checkpoint #4 in the skeleton is where a mob discovers it needs one.
 //
 // These drive a REAL in-process server with a REAL HttpClient. Routing, model
 // binding, JSON serialization, status codes and headers are all genuinely
 // exercised — no port is opened and nothing is installed, but nothing is
 // simulated either. A typo in a route template fails a test here.
 //
-// COUNT THESE TESTS. There are eight, against eight in the service suite and
-// six in the contract suite that each run twice. That shape — a lot at the
-// bottom, few at the top — is the test pyramid, and the story asks the mob to
-// derive it by counting rather than be shown a diagram.
+// COUNT THESE TESTS. There are ten, against eleven in the service suite and
+// nine in the contract suite that each run twice. That shape — a lot at the
+// bottom, few at the top — is the test pyramid, and checkpoint #4 asks the mob
+// to derive it by counting rather than be shown a diagram.
 //
 // Note what is NOT tested here, on purpose:
 //   · that two URLs get different codes        (UrlShortenerTests — R3)
 //   · that a blank URL is refused              (UrlShortenerTests — R7)
 //   · that a repeated code doesn't lose a link (contract suite — R9/R12)
+//   · how two links created at once are ordered (contract suite — R22)
 //
 // Every one of those is already proven, closer to the code that decides it,
 // and roughly two orders of magnitude faster. Re-proving them through HTTP
@@ -54,6 +55,9 @@ public class UrlEndpointsTests : IAsyncLifetime
         builder.Services.AddSingleton<IUrlRepository, InMemoryUrlRepository>();
         builder.Services.AddSingleton<IShortCodeGenerator>(
             _ => new StubGenerator("abc123", "xyz789"));
+        // The real clock. Ordering by time is proven in the contract suite;
+        // here only the wiring of the list route is under test.
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<UrlShortener>();
 
         _app = builder.Build();
@@ -67,14 +71,21 @@ public class UrlEndpointsTests : IAsyncLifetime
     private Task<HttpResponseMessage> PostLink(string url) =>
         _client.PostAsJsonAsync("/links", new ShortenRequest(url));
 
-    [Fact] // [positive] (R15)
-    public async Task ShorteningAUrlIs201WithTheCodeAndALocation()
+    [Fact] // [positive] (R15/R24)
+    public async Task ShorteningAUrlIs201WithTheWholeLinkAndALocation()
     {
         var response = await PostLink("https://example.com/articles/tdd-mob-katas");
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("/links/abc123", response.Headers.Location?.ToString());
-        Assert.Equal("abc123", (await response.Content.ReadFromJsonAsync<ShortenResponse>())!.Code);
+        var created = (await response.Content.ReadFromJsonAsync<LinkResponse>())!;
+        Assert.Equal("abc123", created.Code);
+        Assert.Equal("https://example.com/articles/tdd-mob-katas", created.Url);
+        // R24 — the same link, in the same shape, as the table will list it.
+        // The clock here is the real one, so the table is the only honest
+        // thing to compare the creation time against.
+        var listed = (await _client.GetFromJsonAsync<LinkResponse[]>("/links"))!;
+        Assert.Equal(listed.Single(), created);
     }
 
     [Fact] // [positive] (R16)
@@ -90,7 +101,7 @@ public class UrlEndpointsTests : IAsyncLifetime
             (await response.Content.ReadFromJsonAsync<ResolveResponse>())!.Url);
     }
 
-    [Fact] // [edge] (R17) — the unknown-code decision from story 1, three sessions later
+    [Fact] // [edge] (R17) — the unknown-code decision from checkpoint #1, much later
     public async Task ResolvingACodeNobodyMintedIs404()
     {
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/links/nope99")).StatusCode);
@@ -118,8 +129,31 @@ public class UrlEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
         Assert.NotEqual(
-            (await first.Content.ReadFromJsonAsync<ShortenResponse>())!.Code,
-            (await second.Content.ReadFromJsonAsync<ShortenResponse>())!.Code);
+            (await first.Content.ReadFromJsonAsync<LinkResponse>())!.Code,
+            (await second.Content.ReadFromJsonAsync<LinkResponse>())!.Code);
+    }
+
+    [Fact] // [positive] (R23) — the table's route
+    public async Task ListingIs200WithEveryLinkNewestFirst()
+    {
+        await PostLink("https://example.com/first");
+        await PostLink("https://example.com/second");
+
+        var response = await _client.GetAsync("/links");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listed = (await response.Content.ReadFromJsonAsync<LinkResponse[]>())!;
+        Assert.Equal(new[] { "xyz789", "abc123" }, listed.Select(link => link.Code));
+        Assert.Equal("https://example.com/second", listed[0].Url);
+    }
+
+    [Fact] // [edge] (R23) — an empty table is a list, not a 404
+    public async Task ListingBeforeAnythingIsShortenedIs200WithNothingInIt()
+    {
+        var response = await _client.GetAsync("/links");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty((await response.Content.ReadFromJsonAsync<LinkResponse[]>())!);
     }
 
     // ── The two tests that only exist because this server is real ──────
@@ -133,7 +167,7 @@ public class UrlEndpointsTests : IAsyncLifetime
     {
         // Call the production routes at the wrong path. Nothing in the domain
         // is involved; this only passes because a real router looked at a real
-        // request and found nothing. Change "/links" to "/lnks" in
+        // request and found nothing. Change the "/links" group to "/lnks" in
         // UrlEndpoints.cs and watch this suite — and only this suite — go red.
         Assert.Equal(HttpStatusCode.NotFound, (await _client.PostAsync("/lnks", null)).StatusCode);
     }

@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Kata;
 
-// URL Shortener kata — reference solution 2 of 2: INTEGRATED (story 3).
+// URL Shortener kata — reference solution 2 of 2: INTEGRATED (the HTTP layer).
 // See ../Solution2-Integrated.md.
 //
 // These routes are byte-for-byte the same decisions as solution 1's, which is
 // the point worth noticing: the HTTP layer is where the two solutions AGREE.
 // Both map an unknown code to 404 and a bad URL to 400; both hand back 201 with
-// a Location header. The designs diverge underneath, not at the edge.
+// a Location header; both serve the table, newest first, at GET /links. The
+// designs diverge underneath, not at the edge.
 //
 // One difference, and it is the coupling surfacing again. Solution 1's routes
 // catch UnknownCodeException and ArgumentException — the service's own
@@ -22,20 +23,23 @@ namespace Kata;
 // a place to put it and this design does not.
 public record ShortenRequest(string Url);
 
-public record ShortenResponse(string Code);
-
 public record ResolveResponse(string Url);
+
+public record LinkResponse(string Code, string Url, DateTimeOffset CreatedAt);
 
 public static class UrlEndpoints
 {
     public static void MapUrlEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/links", (ShortenRequest request, UrlShortener shortener) =>
+        var links = app.MapGroup("/links");
+
+        links.MapPost("/", (ShortenRequest request, UrlShortener shortener) =>
         {
             try
             {
-                var code = shortener.Shorten(request.Url);
-                return Results.Created($"/links/{code}", new ShortenResponse(code));
+                var link = shortener.Shorten(request.Url);
+                return Results.Created(
+                    $"/links/{link.Code}", new LinkResponse(link.Code, link.Url, link.CreatedAt));
             }
             catch (ArgumentException)
             {
@@ -43,7 +47,11 @@ public static class UrlEndpoints
             }
         });
 
-        app.MapGet("/links/{code}", (string code, UrlShortener shortener) =>
+        links.MapGet("/", (UrlShortener shortener) =>
+            Results.Ok(shortener.List().Select(link =>
+                new LinkResponse(link.Code, link.Url, link.CreatedAt))));
+
+        links.MapGet("/{code}", (string code, UrlShortener shortener) =>
         {
             try
             {

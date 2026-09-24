@@ -7,7 +7,7 @@ Code: [`csharp-isolated/`](csharp-isolated/) · Compare with
 
 This is the **inside-out** solution. It starts at the domain, tests each piece
 against doubles, and works outward to the database and then the web. It is the
-design the kata's checkpoints and stories are written to produce.
+design the backend track's checkpoints are written to produce.
 
 ## The test order, and why each step is where it is
 
@@ -18,19 +18,25 @@ Each line is one red bar. The rationale matters more than the list.
 | 1 | shortening a URL gives back a code that resolves to it | the two methods exist. Minimum green is a hard-coded pair | service, no collaborators |
 | 2 | two different URLs get two different codes | the hard-coded pair dies; a `Dictionary` and some way to mint codes appear. A counter is a legitimate first answer | service |
 | 3 | resolving a code nobody minted | contract decision: throw. First deliberate choice, not an accident | service |
-| 4 | the same URL twice mints a fresh code | contract decision: idempotency. Comes back in story 3 as a status code | service |
+| 4 | the same URL twice mints a fresh code | contract decision: idempotency. Comes back at checkpoint #4 as a status code | service |
 | 5 | a blank URL is refused | the negative column | service |
 | — | **the forcing prompt**: *write the test that proves a link survives a restart* | **nothing** — they can't write it. That failure is what earns the seam | — |
 | 6 | *(all of 1–5, unchanged and still green)* | **menu (a)**: storage moves behind `IUrlRepository`; the `Dictionary` becomes `InMemoryUrlRepository`. The green bar through a structural change is the receipt | service + fake |
 | 7 | a specific code is minted | **menu (b)**: the generator becomes a constructor argument, so a test can name the exact code | service + fake + stub |
 | 8 | a repeated code mints another rather than overwriting | the collision. The naive `dict[code] = url` silently loses a link — found by a test, in code the mob wrote | service + fake |
-| — | **story 2 begins** | | |
+| — | **checkpoint #3 — the real database** | | |
 | 9 | *(the repository tests, moved — not rewritten)* | **menu (c)**: they become an abstract `UrlRepositoryContractTests`. xUnit inherits `[Fact]`s, so the in-memory subclass goes green immediately | contract suite |
 | 10 | the same suite, against SQLite | `SqliteUrlRepository`. Three lines of subclass, and now every storage rule is asked of both stores | contract suite ×2 |
 | 11 | a duplicate code is refused, and the original survives | **menu (e)**: `SqliteException` must not escape, so it is translated at the boundary | contract suite ×2 |
 | 12 | codes are case-sensitive | R14 — the quieter fidelity gap. Both stores must give the same answer | contract suite ×2 |
-| — | **story 3 begins** | | |
-| 13–20 | status-code mapping, a misspelled route, a malformed body | the wiring, and only the wiring. No domain rule is re-tested here | real HTTP |
+| — | **checkpoint #4 — HTTP** | | |
+| 13–20 | status-code mapping, a misspelled route, a malformed body | the wiring, and only the wiring. No domain rule is re-tested here. (The 201 now also checks the body is the whole link — R24, added after the end-to-end smoke test found `POST` answering with a bare code) | real HTTP |
+| — | **the extended story — the table** | | |
+| 21 | the service lists links newest first, stamped with when each was made | the clock becomes a constructor argument — (b)'s twin, for the same reason: a test cannot name a time it doesn't control | service + fake + fake clock |
+| 22 | every store lists links newest first by creation time | `All()` joins the port. The links are saved *out* of time order, so echoing the save order back cannot pass | contract suite ×2 |
+| 23 | two links from the same instant list the later-saved first | the tie rule. A stable sort by time alone passes 22 and fails here — in whichever store lacks a tie-break | contract suite ×2 |
+| 24 | nothing saved lists nothing | | contract suite ×2 |
+| 25–26 | the list route, and an empty table as `[]` | R23's wiring, and only the wiring | real HTTP |
 
 **Steps 6 and 9 are the two that teach the most, and neither is a new test.**
 One is a structural refactor that keeps every existing test green; the other is
@@ -39,25 +45,30 @@ structure and that is the lesson.
 
 ## The design that fell out
 
-- `IUrlRepository` — a port in the **domain's** vocabulary (`Save`, `Find`), so
-  the service never learns what SQL is.
+- `IUrlRepository` — a port in the **domain's** vocabulary (`Save`, `Find`,
+  `All`), so the service never learns what SQL is. Order is part of its
+  contract: `All` promises newest first.
 - `InMemoryUrlRepository` — a real, working implementation that happens to keep
-  links in memory. Twelve lines, hand-written, no library.
+  links in memory. A couple of dozen lines, hand-written, no library.
 - `SqliteUrlRepository` — the same interface, translating `SqliteException` into
   `CodeAlreadyTakenException` at the boundary.
 - `UrlRepositoryContractTests` — one abstract suite, two subclasses.
+- `TimeProvider` — the clock, injected like the generator once the extended story
+  needed to say *when* a link was made. .NET 8's own abstraction; the fake is a
+  five-line subclass in the test file.
 - Menu items **(d)** Try-pattern and **(f)** value object declined, with reasons
   in the file headers.
 
 ## Honest note for the facilitator
 
-A mob that works checkpoint #2 properly **fixes its own fake in story 1** — it
-finds the silent overwrite, decides the store should refuse, and makes the fake
-refuse. So when story 2 arrives, both stores agree and nothing goes red.
+A mob that works checkpoint #2 properly **fixes its own fake before it ever
+meets a database** — it finds the silent overwrite, decides the store should
+refuse, and makes the fake refuse. So when checkpoint #3 arrives, both stores
+agree and nothing goes red.
 
 That is not a failed lesson; it is a different one. They decided how storage
 behaves and then made their own double behave that way, which is exactly the
-position every team is in. Story 2 is what *verifies* the guess against
+position every team is in. Checkpoint #3 is what *verifies* the guess against
 something that does not care what they think. Say that out loud.
 
 Two ways a genuine red bar still appears:
@@ -65,15 +76,15 @@ Two ways a genuine red bar still appears:
 - **If they chose case-INSENSITIVE codes** (R8), `StringComparer.OrdinalIgnoreCase`
   and SQLite's default `BINARY` collation disagree, and R14 fires for real.
 - **The revert experiment**, which works for any mob: change the fake's `TryAdd`
-  guard back to `_links[code] = url` and run. Four tests fail, all on the
+  guard back to a plain `_links[link.Code] = …` assignment and run. Four tests fail, all on the
   in-memory path, none on SQLite. That is what would have happened if they had
   missed it — and it takes fifteen seconds to show.
 
 ## Pros
 
-- **A genuinely fast inner loop.** Twenty-two of the thirty tests run in about
-  10 ms *combined*. During red/green/refactor you run those constantly and the
-  eight slow ones rarely. Solution 2 has no equivalent cheap tier.
+- **A genuinely fast inner loop.** Twenty-nine of the thirty-nine tests run in
+  about 10 ms *combined*. During red/green/refactor you run those constantly and
+  the ten slow ones rarely. Solution 2 has no equivalent cheap tier.
 - **Failures name a class.** A broken repository reddens the contract suite; a
   broken route reddens the HTTP suite. You know where to look before you look.
 - **Unreachable states are reachable.** The collision test exists because a stub
@@ -87,7 +98,7 @@ Two ways a genuine red bar still appears:
 ## Cons
 
 - **More moving parts.** Six source files, three test classes, an interface, a
-  fake, an abstract suite and two subclasses — for a service with two methods.
+  fake, an abstract suite and two subclasses — for a service with three methods.
 - **The fake must be kept honest**, and that is a standing obligation. Contract
   tests are the answer, but they are machinery you now maintain forever.
 - **It is possible to be green and broken.** Both failure modes are

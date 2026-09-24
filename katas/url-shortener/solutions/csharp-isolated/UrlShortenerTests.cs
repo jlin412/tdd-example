@@ -2,8 +2,9 @@ using Xunit;
 
 namespace Kata;
 
-// URL Shortener kata — reference test suite for the SERVICE (R1–R9).
-// This is what a mob's suite might look like after story 1.
+// URL Shortener kata — reference test suite for the SERVICE (R1–R9, R20).
+// This is what a mob's suite might look like after checkpoint #2, plus the one
+// service-level test the extended story added.
 //
 // Every test here runs against the in-memory store, and that is a deliberate
 // choice, not laziness: these tests are about the SHORTENER's rules — minting,
@@ -28,15 +29,28 @@ public class UrlShortenerTests
             _codes.Count > 0 ? _codes.Dequeue() : throw new InvalidOperationException("stub ran out of codes");
     }
 
+    // The extended story's seam. .NET 8 ships TimeProvider as the abstraction
+    // for "now"; overriding one method is the whole fake, so — as with the
+    // repository — nothing is imported to get a double.
+    private sealed class FakeClock : TimeProvider
+    {
+        private DateTimeOffset _now;
+        public FakeClock(DateTimeOffset start) => _now = start;
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan by) => _now += by;
+    }
+
+    private static readonly DateTimeOffset Noon = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
     private static UrlShortener ShortenerThatMints(params string[] codes) =>
-        new(new InMemoryUrlRepository(), new StubGenerator(codes));
+        new(new InMemoryUrlRepository(), new StubGenerator(codes), new FakeClock(Noon));
 
     [Fact] // [positive] (R1/R2) — the round trip, the same test STEP 1 works through
     public void ShorteningAUrlGivesBackACodeThatResolvesToIt()
     {
         var shortener = ShortenerThatMints("abc123");
 
-        var code = shortener.Shorten("https://example.com/articles/tdd-mob-katas");
+        var code = shortener.Shorten("https://example.com/articles/tdd-mob-katas").Code;
 
         Assert.Equal("abc123", code);
         Assert.Equal("https://example.com/articles/tdd-mob-katas", shortener.Resolve(code));
@@ -47,8 +61,8 @@ public class UrlShortenerTests
     {
         var shortener = ShortenerThatMints("abc123", "xyz789");
 
-        var first = shortener.Shorten("https://example.com/first");
-        var second = shortener.Shorten("https://example.com/second");
+        var first = shortener.Shorten("https://example.com/first").Code;
+        var second = shortener.Shorten("https://example.com/second").Code;
 
         Assert.NotEqual(first, second);
         Assert.Equal("https://example.com/first", shortener.Resolve(first));
@@ -69,8 +83,8 @@ public class UrlShortenerTests
         var shortener = ShortenerThatMints("abc123", "xyz789");
         var url = "https://example.com/same/every/time";
 
-        var first = shortener.Shorten(url);
-        var second = shortener.Shorten(url);
+        var first = shortener.Shorten(url).Code;
+        var second = shortener.Shorten(url).Code;
 
         Assert.NotEqual(first, second);
         // Both codes work. One URL, two front doors — said out loud, in a test,
@@ -98,8 +112,8 @@ public class UrlShortenerTests
         // refused, and tries again.
         var shortener = ShortenerThatMints("abc123", "abc123", "xyz789");
 
-        var first = shortener.Shorten("https://example.com/first");
-        var second = shortener.Shorten("https://example.com/second");
+        var first = shortener.Shorten("https://example.com/first").Code;
+        var second = shortener.Shorten("https://example.com/second").Code;
 
         Assert.Equal("abc123", first);
         Assert.Equal("xyz789", second);
@@ -125,5 +139,25 @@ public class UrlShortenerTests
         shortener.Shorten("https://example.com/first");
 
         Assert.Throws<UnknownCodeException>(() => shortener.Resolve("ABC123"));
+    }
+
+    [Fact] // [positive] (R20/R21) — the table, as far as the SERVICE is concerned
+    public void ListsEveryLinkNewestFirstWithTheMomentItWasCreated()
+    {
+        // Only the stamping is the service's job; HOW the list is ordered is
+        // a storage promise, proven against both stores in the contract suite.
+        var clock = new FakeClock(Noon);
+        var shortener = new UrlShortener(
+            new InMemoryUrlRepository(), new StubGenerator("abc123", "xyz789"), clock);
+
+        var first = shortener.Shorten("https://example.com/first");
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var second = shortener.Shorten("https://example.com/second");
+
+        // Each Shorten hands back the link it made, stamped with the clock's
+        // time — and the list agrees with it exactly.
+        Assert.Equal(new Link("abc123", "https://example.com/first", Noon), first);
+        Assert.Equal(new Link("xyz789", "https://example.com/second", Noon.AddMinutes(1)), second);
+        Assert.Equal(new[] { second, first }, shortener.List());
     }
 }

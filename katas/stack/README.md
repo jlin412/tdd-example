@@ -7,9 +7,10 @@ in [StackStory.md](StackStory.md). Once that ships,
 [StackExtendedStory.md](StackExtendedStory.md) gives it a maximum size.
 
 Where the other katas in this repo sit either side of it: **FizzBuzz** is a pure
-function (one input, one output, no state), and **Todo List** is stateful but
-driven through the DOM. A stack is the shape in between and the most common one
-in everyday code — **a stateful plain object tested through its own API**.
+function (one input, one output, no state), and **URL Shortener** depends on a
+collaborator — storage on its backend track, a service on its frontend track.
+A stack is the shape in between and the most common one in everyday code — **a
+stateful plain object tested through its own API**.
 
 That changes what the tests look like, which is the point:
 

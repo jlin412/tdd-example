@@ -6,7 +6,9 @@ namespace Kata;
 // URL Shortener kata — YOU write the tests.
 // ════════════════════════════════════════════════════════════════════
 // The story is in katas/url-shortener/UrlShortenerStory.md — read it first,
-// walkthrough table and all.
+// walkthrough table and all. This is the BACKEND track: the service behind the
+// page the story describes. (The page itself is the Angular track, in
+// ../angular/. The two tracks share the story and nothing else.)
 //
 // STEP 0 is the test LIST: before any code, name as many tests as the mob
 // can think of. STEP 1 then works one of them through the loop:
@@ -21,8 +23,8 @@ namespace Kata;
 //
 // Test-type legend:  [positive] [boundary] [edge] [negative]
 //
-// WHAT IS NEW HERE — every other kata in this repo tests an object that stands
-// alone. A FizzBuzz, a Stack, a component: you build it, you poke it, done.
+// WHAT IS NEW HERE — FizzBuzz and Stack test objects that stand alone. A
+// FizzBuzz, a Stack: you build it, you poke it, done.
 // This one is going to grow a COLLABORATOR — something it depends on, that it
 // cannot do its job without. Nobody is going to tell you when. A test you
 // cannot write is what tells you.
@@ -122,8 +124,8 @@ public class UrlShortenerTests
     //   The story does NOT say what happens. Throw? Hand back nothing?
     //   Something else? DECIDE as a mob, then encode the decision as a test
     //   (Assert.Throws<T> is one tool; there are others). Whatever you pick,
-    //   apply it consistently — you will meet this decision again in story 3,
-    //   where it turns into an HTTP status code.
+    //   apply it consistently — you will meet this decision again at
+    //   checkpoint #4, where it turns into an HTTP status code.
 
     // [edge] — shortening the SAME URL twice.
     //   The same code back, or a fresh one? The story leaves this open on
@@ -170,7 +172,8 @@ public class UrlShortenerTests
     //       implementation of the port must pass.
     //       Be honest today: you have exactly ONE implementation, so this is
     //       ceremony with nothing to weigh against it. Weigh it, write down
-    //       WHEN it would pay, and most likely decline it. (Story 2 is when.)
+    //       WHEN it would pay, and most likely decline it. (Checkpoint #3 is
+    //       when.)
     //   (d) TRY-PATTERN INSTEAD OF THROWING — bool TryResolve(string code,
     //       out string url), the idiom .NET uses on its own collections.
     //       Worth it if your unknown-code decision above is making callers
@@ -196,7 +199,7 @@ public class UrlShortenerTests
     //  fake in about twelve lines. What would Moq or NSubstitute have added,
     //  and what would they have hidden? A configured mock can only ever tell
     //  you what you told it; a fake you wrote is a real implementation you can
-    //  actually run things against. Hold that thought until story 2.
+    //  actually run things against. Hold that thought until checkpoint #3.
     //  A GENERIC IRepository<T> — it cannot express "is this code already
     //  taken?", which is the one question this domain genuinely needs to ask.
     //  ASYNC EVERYWHERE — Task<string> on every method is what you'd ship at
@@ -241,8 +244,8 @@ public class UrlShortenerTests
     //   store SHOULD do when a code is already taken — reject it? retry?
     //   and make your fake do that.
     //
-    //   Sit with one question before you move on, because story 2 is built
-    //   entirely on it:
+    //   Sit with one question before you move on, because checkpoint #3 is
+    //   built entirely on it:
     //       You just decided how storage behaves, and then you made your own
     //       fake behave that way. What, exactly, would tell you if a REAL
     //       database disagreed with you?
@@ -253,9 +256,95 @@ public class UrlShortenerTests
     //   · Is each contract decision above expressed in ONE place, or repeated
     //     at every entry point?
 
-    // ── WHAT NEXT · story 2, the database ─────────────────────────────
-    //   Shipped the shortener? Good — now it has to be true.
-    //   katas/url-shortener/UrlShortenerDatabaseStory.md swaps your fake for
-    //   a real SQLite database. Before you open it, write down what you
-    //   expect to break. Then find out.
+    // ═════════════════════════════════════════════════════════════════
+    // CHECKPOINT #3 · IS IT TRUE? — the links have to survive
+    // ═════════════════════════════════════════════════════════════════
+    // The story promised on day one that a short link keeps working after a
+    // restart, and from a different server. Your links live in a store YOU
+    // wrote, in memory, in one process. So:
+    //
+    //   The compiler proved your in-memory store IMPLEMENTS the interface.
+    //   What proved it BEHAVES LIKE THE REAL THING?
+    //
+    // Nothing has. Storage becomes a real database: SQLite, with nothing to
+    // install. SqliteTestDatabase.cs is GIVEN — a live connection and a table.
+    // Read its header, and read its schema: one line of it is going to matter.
+    // The SQL is plain ADO.NET, and this is the whole idiom:
+    //
+    //     using var command = connection.CreateCommand();
+    //     command.CommandText = "INSERT INTO links (code, url) VALUES ($code, $url)";
+    //     command.Parameters.AddWithValue("$code", code);
+    //     command.Parameters.AddWithValue("$url", url);
+    //     command.ExecuteNonQuery();          // or ExecuteScalar() to read one value
+    //
+    // That's the idiom, not the design. In order:
+    //   1. PREDICT, out loud, before writing anything. You are about to run
+    //      your storage tests against a second implementation of the same
+    //      interface. Which of them will pass? Put the list on the whiteboard
+    //      BEFORE the bar goes red — it only counts if it was written first.
+    //   2. Make those tests runnable against EITHER store. What is the least
+    //      you can change so one test class asks its questions of any
+    //      repository? (Look at menu item (c) again. And: does xUnit run
+    //      [Fact]s it inherits from a base class?)
+    //   3. Write the SQLite repository behind the same interface.
+    //   4. Run it, compare against the prediction, and deal with what you find
+    //      — one red at a time.
+    //
+    // Two follow-ups, each worth a red bar of its own:
+    //   · Whatever SQLite throws when it objects — should a caller of your
+    //     shortener ever see it? What would that caller have to know about?
+    //   · Resolve a code in the wrong case against BOTH stores. If they
+    //     disagree, where was your case decision actually written down?
+
+    // ═════════════════════════════════════════════════════════════════
+    // CHECKPOINT #4 · THE FRONT DOOR — how does the page reach you?
+    // ═════════════════════════════════════════════════════════════════
+    // Reread the story: people shorten links on a web PAGE, in a browser. Your
+    // shortener works — for anyone who can construct a C# object in your
+    // process. A browser can't. What does the page need to be able to ask,
+    // and what should it hear back — for a new link, for a code nobody
+    // minted, for a URL that isn't one? Decide that conversation as a mob:
+    // which requests, which status codes, which JSON.
+    //
+    // One structural hint, because it is what makes this pleasant: put the
+    // routes in an EXTENSION METHOD, not a Program.cs —
+    //
+    //     public static void MapUrlEndpoints(this IEndpointRouteBuilder app) { ... }
+    //
+    // Production owns the routes, and a real host and a TEST host can both
+    // mount them. The test host is a real server that never opens a port:
+    //
+    //     var builder = WebApplication.CreateBuilder();
+    //     builder.WebHost.UseTestServer();
+    //     // ...register what UrlShortener needs...
+    //     var app = builder.Build();
+    //     app.MapUrlEndpoints();
+    //     await app.StartAsync();
+    //     var client = app.GetTestClient();   // a real HttpClient
+    //
+    // (Everything that needs is already referenced in the .csproj.)
+    //
+    // BEFORE you write a test here, decide what belongs here. You already
+    // prove that two URLs get different codes, that a blank URL is refused,
+    // that a repeated code never loses a link. How many of those should be
+    // proven AGAIN through HTTP? Be able to say why before you answer.
+    //
+    // Two tests only a real server can pass — write your own versions:
+    //   [negative] a misspelled route. What comes back, and what decided it?
+    //   [negative] a body that isn't JSON at all. Whose code rejects it?
+    //
+    // Then two experiments, each settling an argument that otherwise runs on
+    // taste:
+    //   · Misspell your route prefix by ONE character and run everything.
+    //     Which suites notice — and which stay green while the service is
+    //     perfect and completely unreachable?
+    //   · Count your tests per suite — HTTP, service, storage — and time each
+    //     tier. That shape has a name. What does the clock say about how many
+    //     of the slow ones you can afford?
+
+    // ── WHAT NEXT · the extended story, the table ─────────────────────
+    //   Shipped the backend? The product owner wants a table of every link,
+    //   newest first: katas/url-shortener/UrlShortenerExtendedStory.md.
+    //   Before you open it, predict which of your suites will need a new
+    //   test — and which layer will need to know what time it is.
 }

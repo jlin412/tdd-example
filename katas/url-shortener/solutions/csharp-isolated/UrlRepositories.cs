@@ -7,7 +7,9 @@ namespace Kata;
 //
 // Both implement IUrlRepository, and BOTH are held to the same suite in
 // UrlRepositoryContractTests.cs. That shared suite is menu item (c), and it is
-// the only thing standing between this file and the bug story 2 is about.
+// the only thing standing between this file and the bug the real database
+// exposes at checkpoint #3 — and, later, the ordering bug the extended story
+// invites.
 
 // ── The fake (menu item (a)) ─────────────────────────────────────────
 // Written by hand, in about a dozen lines, by the team that needed it. It is
@@ -17,31 +19,51 @@ namespace Kata;
 // what it was told.
 public sealed class InMemoryUrlRepository : IUrlRepository
 {
+    // The order links were saved in. A Dictionary makes no promise about
+    // enumeration order, so the tie-break R22 needs is kept explicitly rather
+    // than borrowed from an implementation detail that happens to hold today.
+    private sealed record Entry(Link Link, long SavedAs);
+
     // R8/R14 — StringComparer.Ordinal is where "codes are case-sensitive"
     // lives for this store. It is deliberate, not a default: the out-of-the-box
-    // Dictionary<string, string> comparer is ordinal too, but writing it out
+    // Dictionary<string, Entry> comparer is ordinal too, but writing it out
     // means the decision is READ as a decision, and it is what makes this store
     // agree with the SQLite column's BINARY collation.
-    private readonly Dictionary<string, string> _links = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Entry> _links = new(StringComparer.Ordinal);
+    private long _saved;
 
-    public void Save(string code, string url)
+    public void Save(Link link)
     {
         // R9/R12 — THE line the whole kata turns on.
         //
-        // The obvious first draft is `_links[code] = url;`. It compiles, it
+        // The obvious first draft is `_links[link.Code] = ...;`. It compiles, it
         // reads fine, every test written before checkpoint #2 stays green — and
         // it SILENTLY DESTROYS a link when a code repeats. No exception, no
         // failure, just a URL that used to work and now points somewhere else.
         //
         // TryAdd refuses instead. That is not a detail: it is this store
         // agreeing to the same contract the database enforces in hardware.
-        if (!_links.TryAdd(code, url))
+        if (!_links.TryAdd(link.Code, new Entry(link, ++_saved)))
         {
-            throw new CodeAlreadyTakenException(code);
+            throw new CodeAlreadyTakenException(link.Code);
         }
     }
 
-    public string? Find(string code) => _links.TryGetValue(code, out var url) ? url : null;
+    public string? Find(string code) => _links.TryGetValue(code, out var entry) ? entry.Link.Url : null;
+
+    // R21/R22 — newest first, and the later-saved of two simultaneous links
+    // first. The obvious draft, OrderByDescending(CreatedAt) alone, passes
+    // every test with distinct times: LINQ's sort is stable, so ties quietly
+    // keep whatever order the Dictionary enumerates — oldest-saved first today.
+    // SQLite asked to ORDER BY created_at alone promises nothing about ties
+    // either. The same-instant contract test pins one answer for BOTH stores:
+    // drop either store's tie-break and exactly that store's run of it fails.
+    public IReadOnlyList<Link> All() =>
+        _links.Values
+            .OrderByDescending(entry => entry.Link.CreatedAt)
+            .ThenByDescending(entry => entry.SavedAs)
+            .Select(entry => entry.Link)
+            .ToList();
 }
 
 // ── The real store ───────────────────────────────────────────────────
@@ -57,12 +79,16 @@ public sealed class SqliteUrlRepository : IUrlRepository
 
     public SqliteUrlRepository(SqliteConnection connection) => _connection = connection;
 
-    public void Save(string code, string url)
+    public void Save(Link link)
     {
         using var command = _connection.CreateCommand();
-        command.CommandText = "INSERT INTO links (code, url) VALUES ($code, $url)";
-        command.Parameters.AddWithValue("$code", code);
-        command.Parameters.AddWithValue("$url", url);
+        command.CommandText =
+            "INSERT INTO links (code, url, created_at) VALUES ($code, $url, $createdAt)";
+        command.Parameters.AddWithValue("$code", link.Code);
+        command.Parameters.AddWithValue("$url", link.Url);
+        // UTC ticks: an integer sorts exactly as the instant it stands for, with
+        // no offsets or formatting to disagree about.
+        command.Parameters.AddWithValue("$createdAt", link.CreatedAt.UtcTicks);
 
         try
         {
@@ -74,13 +100,13 @@ public sealed class SqliteUrlRepository : IUrlRepository
             //
             // Without this, a SqliteException escapes — and every caller above
             // has to know that links are kept in SQLite in order to understand
-            // what went wrong. Story 3's handler would have to reach into a
+            // what went wrong. The HTTP handler would have to reach into a
             // database driver's error codes just to decide between 409 and 500,
             // and swapping SQLite for anything else would break all of them.
             //
             // The message SQLite gives here, for the record:
             //   SQLite Error 19: 'UNIQUE constraint failed: links.code'.
-            throw new CodeAlreadyTakenException(code);
+            throw new CodeAlreadyTakenException(link.Code);
         }
     }
 
@@ -94,6 +120,29 @@ public sealed class SqliteUrlRepository : IUrlRepository
         command.CommandText = "SELECT url FROM links WHERE code = $code";
         command.Parameters.AddWithValue("$code", code);
         return command.ExecuteScalar() as string;
+    }
+
+    public IReadOnlyList<Link> All()
+    {
+        // R21/R22 — the ORDER BY is the whole implementation. Without it SQLite
+        // returns rows in whatever order its query plan produces, which is not
+        // a promise. rowid only ever grows for this table, so it is the
+        // "saved later" tie-break.
+        using var command = _connection.CreateCommand();
+        command.CommandText =
+            "SELECT code, url, created_at FROM links ORDER BY created_at DESC, rowid DESC";
+
+        using var reader = command.ExecuteReader();
+        var links = new List<Link>();
+        while (reader.Read())
+        {
+            links.Add(new Link(
+                reader.GetString(0),
+                reader.GetString(1),
+                new DateTimeOffset(reader.GetInt64(2), TimeSpan.Zero)));
+        }
+
+        return links;
     }
 }
 

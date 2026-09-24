@@ -15,14 +15,14 @@
     <!-- The only non-test-framework dependency in this repo, and it is the
          subject matter rather than convenience tooling: this kata is about
          what happens when a real database disagrees with your in-memory
-         fake. It ships from day one even though the first story never
+         fake. It ships from day one even though nothing before checkpoint #3
          touches SQL, because solutions/ carries no build files of its own —
          the reference SQLite repository can only compile if the skeleton
          already references this. It bundles its own native binaries, so
          there is nothing for a participant to install. -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
 
-    <!-- Story 3 only. The FrameworkReference is what lets a plain
+    <!-- Checkpoint #4 (HTTP) only. The FrameworkReference is what lets a plain
          Microsoft.NET.Sdk project use ASP.NET Core types without switching to
          Microsoft.NET.Sdk.Web — which matters here, because the web SDK would
          also demand an entry point and collide with the one the test SDK
