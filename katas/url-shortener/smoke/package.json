@@ -1,0 +1,16 @@
+{
+  "name": "url-shortener-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The URL Shortener kata's reference page and reference backend, together: one end-to-end smoke test, and a server to try it by hand.",
+  "scripts": {
+    "start": "node serve.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.8"
+  }
+}

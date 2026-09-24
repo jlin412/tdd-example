@@ -1,0 +1,6 @@
+# Assembled and built by prepare.mjs on every run
+/build/
+
+# Playwright output
+/test-results/
+/playwright-report/
