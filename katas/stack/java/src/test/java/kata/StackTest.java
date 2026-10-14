@@ -125,7 +125,41 @@ class StackTest {
     //   your count follow the operations, or only the pushes?
 
     // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+    // CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+    // ═════════════════════════════════════════════════════════════════
+    // Still RED work: the corners the story deliberately left open. ONE
+    // failing test at a time.
+
+    // [edge] — popping an empty stack. And peeking one.
+    //   The story does NOT tell you what should happen. Throw? Return
+    //   null? Return an Optional? DECIDE as a mob, then encode the
+    //   decision as a test (assertThrows is the tool). Every language
+    //   answers this differently — java.util.Stack throws
+    //   EmptyStackException, Python raises IndexError, JavaScript's
+    //   Array.pop() quietly hands back undefined.
+
+    // [edge] — the ambiguity that decision creates.
+    //   Suppose you chose "return null when empty". Now push null into the
+    //   stack and pop it. Can a caller tell those two cases apart? Write
+    //   the test that exposes it, then decide what to do about it — this
+    //   is exactly what menu item (d) is for.
+
+    // [negative] — the leak.
+    //   Can a caller reach your internal list and mutate the stack behind
+    //   its back? Try it: get whatever your public API hands out, change
+    //   it, and then ask the stack what it contains. If the stack changed,
+    //   you have a bug that no other test in this file would ever have
+    //   caught. (If you implemented (e), check the iterator too — what
+    //   does its remove() do?)
+
+    // REFACTOR (on green):
+    //   · Does the public API read as a stack — or does it leak how it's
+    //     stored?
+    //   · Is the empty-stack decision expressed in ONE place, or repeated
+    //     at every entry point?
+
+    // ═════════════════════════════════════════════════════════════════
+    // CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
     // ═════════════════════════════════════════════════════════════════
     // Housekeeping first (hygiene, not a pattern): is the backing list
     // private and final? Does anything in the public API hand it out?
@@ -177,46 +211,12 @@ class StackTest {
     // helper (a stackOf("a", "b", "c")?) — and notice that a good helper
     // makes the NEXT test easier to write, which is the real payoff.
 
-    // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-    // ═════════════════════════════════════════════════════════════════
-    // Back to RED work: the corners the story deliberately left open. ONE
-    // failing test at a time.
-
-    // [edge] — popping an empty stack. And peeking one.
-    //   The story does NOT tell you what should happen. Throw? Return
-    //   null? Return an Optional? DECIDE as a mob, then encode the
-    //   decision as a test (assertThrows is the tool). Every language
-    //   answers this differently — java.util.Stack throws
-    //   EmptyStackException, Python raises IndexError, JavaScript's
-    //   Array.pop() quietly hands back undefined.
-
-    // [edge] — the ambiguity that decision creates.
-    //   Suppose you chose "return null when empty". Now push null into the
-    //   stack and pop it. Can a caller tell those two cases apart? Write
-    //   the test that exposes it, then decide what to do about it — this
-    //   is exactly what menu item (d) is for.
-
-    // [negative] — the leak.
-    //   Can a caller reach your internal list and mutate the stack behind
-    //   its back? Try it: get whatever your public API hands out, change
-    //   it, and then ask the stack what it contains. If the stack changed,
-    //   you have a bug that no other test in this file would ever have
-    //   caught. (If you implemented (e), check the iterator too — what
-    //   does its remove() do?)
-
     // [edge] — what the compiler will NOT catch for you.
     //   javac already rejected half your negative tests — pushing the
     //   wrong type simply doesn't build. But it has nothing to say about
     //   popping an empty stack, or about an iterator that hands out the
     //   live list. Retro question: which of today's bugs did the compiler
     //   find, and which could only ever have been found by a test?
-
-    // REFACTOR (on green):
-    //   · Does the public API read as a stack — or does it leak how it's
-    //     stored?
-    //   · Is the empty-stack decision expressed in ONE place, or repeated
-    //     at every entry point?
 
     // ── WHAT NEXT · the Extended story ────────────────────────────────
     //   Shipped the stack? The requirements change in

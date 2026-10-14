@@ -120,7 +120,44 @@ public class StackTests
     //   your count follow the operations, or only the pushes?
 
     // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+    // CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+    // ═════════════════════════════════════════════════════════════════
+    // Still RED work: the corners the story deliberately left open. ONE
+    // failing test at a time.
+
+    // [edge] — popping an empty stack. And peeking one.
+    //   The story does NOT tell you what should happen. Throw? Return
+    //   default? Return a bool and an out parameter? DECIDE as a mob, then
+    //   encode the decision as a test (Assert.Throws<T> is the tool).
+    //   Every language answers this differently — .NET's own Stack<T>
+    //   throws InvalidOperationException (and offers TryPop alongside),
+    //   Python raises IndexError, JavaScript's Array.pop() quietly hands
+    //   back undefined.
+
+    // [edge] — the ambiguity that decision creates.
+    //   Suppose you chose "return default(T) when empty". Now make a
+    //   Stack<int>, push 0, and pop it. `default(int)` IS 0 — so can a
+    //   caller tell an empty stack from a stack holding a zero? (Same trap
+    //   with null on a Stack<string>.) Write the test that exposes it,
+    //   then decide what to do about it — this is exactly what menu item
+    //   (d) is for.
+
+    // [negative] — the leak.
+    //   Can a caller reach your internal list and mutate the stack behind
+    //   its back? Try it: get whatever your public API hands out, change
+    //   it, and then ask the stack what it contains. If the stack changed,
+    //   you have a bug that no other test in this file would ever have
+    //   caught. (If you implemented (e), check that path too — does the
+    //   IEnumerable<T> you return expose the list itself?)
+
+    // REFACTOR (on green):
+    //   · Does the public API read as a stack — or does it leak how it's
+    //     stored?
+    //   · Is the empty-stack decision expressed in ONE place, or repeated
+    //     at every entry point?
+
+    // ═════════════════════════════════════════════════════════════════
+    // CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
     // ═════════════════════════════════════════════════════════════════
     // Housekeeping first (hygiene, not a pattern): is the backing list
     // private and readonly? Does anything in the public API hand it out?
@@ -173,49 +210,12 @@ public class StackTests
     // helper (a StackOf("a", "b", "c")?) — and notice that a good helper
     // makes the NEXT test easier to write, which is the real payoff.
 
-    // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-    // ═════════════════════════════════════════════════════════════════
-    // Back to RED work: the corners the story deliberately left open. ONE
-    // failing test at a time.
-
-    // [edge] — popping an empty stack. And peeking one.
-    //   The story does NOT tell you what should happen. Throw? Return
-    //   default? Return a bool and an out parameter? DECIDE as a mob, then
-    //   encode the decision as a test (Assert.Throws<T> is the tool).
-    //   Every language answers this differently — .NET's own Stack<T>
-    //   throws InvalidOperationException (and offers TryPop alongside),
-    //   Python raises IndexError, JavaScript's Array.pop() quietly hands
-    //   back undefined.
-
-    // [edge] — the ambiguity that decision creates.
-    //   Suppose you chose "return default(T) when empty". Now make a
-    //   Stack<int>, push 0, and pop it. `default(int)` IS 0 — so can a
-    //   caller tell an empty stack from a stack holding a zero? (Same trap
-    //   with null on a Stack<string>.) Write the test that exposes it,
-    //   then decide what to do about it — this is exactly what menu item
-    //   (d) is for.
-
-    // [negative] — the leak.
-    //   Can a caller reach your internal list and mutate the stack behind
-    //   its back? Try it: get whatever your public API hands out, change
-    //   it, and then ask the stack what it contains. If the stack changed,
-    //   you have a bug that no other test in this file would ever have
-    //   caught. (If you implemented (e), check that path too — does the
-    //   IEnumerable<T> you return expose the list itself?)
-
     // [edge] — what the compiler will NOT catch for you.
     //   The build already rejected half your negative tests — pushing the
     //   wrong type simply doesn't compile. But it has nothing to say about
     //   popping an empty stack, or about a property that hands out the
     //   live list. Retro question: which of today's bugs did the compiler
     //   find, and which could only ever have been found by a test?
-
-    // REFACTOR (on green):
-    //   · Does the public API read as a stack — or does it leak how it's
-    //     stored?
-    //   · Is the empty-stack decision expressed in ONE place, or repeated
-    //     at every entry point?
 
     // ── WHAT NEXT · the Extended story ────────────────────────────────
     //   Shipped the stack? The requirements change in

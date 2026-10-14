@@ -56,7 +56,8 @@ Before any of that, though: write the **test list** (STEP 0 in the spec file).
 - Skeleton to fill in: [javascript/fizzbuzz.js](javascript/fizzbuzz.js) +
   [javascript/fizzbuzz.test.js](javascript/fizzbuzz.test.js)
 - Reference solution (reveal at the end):
-  [solutions/javascript/fizzbuzz.js](solutions/javascript/fizzbuzz.js)
+  [solutions/javascript-steps/step-08c-dependency-injection/fizzbuzz.js](solutions/javascript-steps/step-08c-dependency-injection/fizzbuzz.js)
+  — or walk the whole TDD path in [solutions/javascript-steps/](solutions/javascript-steps/README.md)
 
 ## What next
 

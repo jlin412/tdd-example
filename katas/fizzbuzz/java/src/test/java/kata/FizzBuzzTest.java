@@ -106,7 +106,31 @@ class FizzBuzzTest {
     //   Does your production code join the words, or did you special-case it?
 
     // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+    // CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+    // ═════════════════════════════════════════════════════════════════
+    // Still RED work: the corners the story left dark on purpose. Same
+    // loop as ever — ONE failing test at a time.
+
+    // [edge] The story says counting starts at one — so what about 0?
+    //   Negative numbers? Careful: 0 % 3 == 0. What would naive code return
+    //   for a call with 0? DECIDE as a mob which exception "refuse it" means
+    //   (IllegalArgumentException is the convention), then encode the
+    //   decision as tests (assertThrows is the tool).
+
+    // [negative] — already half-written for you, by the compiler:
+    //   passing "3" or null simply won't compile. Try it —
+    //   uncomment a call like that and watch javac refuse. That's the
+    //   type system acting as a test you didn't have to write. (Compare
+    //   with the Python/JS versions of this kata, which need runtime
+    //   type-guard tests here.) The VALUE checks above are still yours.
+
+    // REFACTOR (on green):
+    //   · GUARD CLAUSES — does validation read as one clean fail-fast
+    //     gate at the top of the method, one early exit per bad shape?
+    //   · Would a thrown message that NAMES the bad input help a caller?
+
+    // ═════════════════════════════════════════════════════════════════
+    // CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
     // ═════════════════════════════════════════════════════════════════
     // Housekeeping first (hygiene, not a pattern): NAMED CONSTANTS —
     // do 3, 5, "Fizz", "Buzz" deserve names?
@@ -160,30 +184,6 @@ class FizzBuzzTest {
     //
     // Tests are code too: repeated setup to extract? Try
     // @ParameterizedTest with @CsvSource for the value tables.
-
-    // ═════════════════════════════════════════════════════════════════
-    // CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-    // ═════════════════════════════════════════════════════════════════
-    // Back to RED work: the corners the story left dark on purpose. Same
-    // loop as ever — ONE failing test at a time.
-
-    // [edge] The story says counting starts at one — so what about 0?
-    //   Negative numbers? Careful: 0 % 3 == 0. What would naive code return
-    //   for a call with 0? DECIDE as a mob which exception "refuse it" means
-    //   (IllegalArgumentException is the convention), then encode the
-    //   decision as tests (assertThrows is the tool).
-
-    // [negative] — already half-written for you, by the compiler:
-    //   passing "3" or null simply won't compile. Try it —
-    //   uncomment a call like that and watch javac refuse. That's the
-    //   type system acting as a test you didn't have to write. (Compare
-    //   with the Python/JS versions of this kata, which need runtime
-    //   type-guard tests here.) The VALUE checks above are still yours.
-
-    // REFACTOR (on green):
-    //   · GUARD CLAUSES — does validation read as one clean fail-fast
-    //     gate at the top of the method, one early exit per bad shape?
-    //   · Would a thrown message that NAMES the bad input help a caller?
 
     // ── WHAT NEXT · the Extended story ────────────────────────────────
     //   Shipped classic FizzBuzz? The requirements change in

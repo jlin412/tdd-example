@@ -9,8 +9,8 @@ requirement lives in a **story file**, the production class starts **empty**,
 and the test file gives **one worked STEP 1** (its assertion commented out —
 uncommenting it is your first RED) with the RED → GREEN → REFACTOR steps
 labelled inside. Every test after that is the mob's to invent — guided by
-comment prompts and two checkpoints (a team-chosen **design-pattern menu**,
-then **negative & edge** contract work). A **reference solution** per language
+comment prompts and two checkpoints (a team-chosen **design-pattern menu**
+and **negative & edge** contract work). A **reference solution** per language
 is there to reveal once the session is done.
 
 ## Katas

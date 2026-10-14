@@ -87,7 +87,29 @@ it('returns the number as a string when nothing special applies', () => {
 //   Does your production code join the words, or did you special-case it?
 
 // ═════════════════════════════════════════════════════════════════════
-// CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+// CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+// ═════════════════════════════════════════════════════════════════════
+// Still RED work: the corners the story left dark on purpose. Same loop
+// as ever — ONE failing test at a time.
+
+// [edge] The story says counting starts at one — so what about 0? Negative
+//   numbers? Careful: 0 % 3 === 0. What would naive code return for
+//   a call with 0? DECIDE as a mob what "refuse it" means precisely (throw
+//   what — Error? RangeError?), then encode the decision as tests.
+
+// [negative] — nothing in JavaScript stops a caller passing '3', 3.5, null
+//   or NaN. What SHOULD each do? Write tests that pin the behavior down,
+//   then guard at runtime (Number.isInteger is a friend).
+
+// REFACTOR (on green):
+//   · GUARD CLAUSES — do the validations read as one clean fail-fast
+//     gate at the top of the method, one early exit per bad shape?
+//   · Would extracting a private #validate(n) keep the method telling
+//     a single story at one level of detail?
+//   · Would a thrown message that NAMES the bad input help a caller?
+
+// ═════════════════════════════════════════════════════════════════════
+// CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
 // ═════════════════════════════════════════════════════════════════════
 // Housekeeping first (hygiene, not a pattern): NAMED CONSTANTS —
 // do 3, 5, 'Fizz', 'Buzz' deserve names?
@@ -137,28 +159,6 @@ it('returns the number as a string when nothing special applies', () => {
 //  modern code prefer composition?)
 //
 // Tests are code too: repeated setup to extract? it.each() to try?
-
-// ═════════════════════════════════════════════════════════════════════
-// CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-// ═════════════════════════════════════════════════════════════════════
-// Back to RED work: the corners the story left dark on purpose. Same loop
-// as ever — ONE failing test at a time.
-
-// [edge] The story says counting starts at one — so what about 0? Negative
-//   numbers? Careful: 0 % 3 === 0. What would naive code return for
-//   a call with 0? DECIDE as a mob what "refuse it" means precisely (throw
-//   what — Error? RangeError?), then encode the decision as tests.
-
-// [negative] — nothing in JavaScript stops a caller passing '3', 3.5, null
-//   or NaN. What SHOULD each do? Write tests that pin the behavior down,
-//   then guard at runtime (Number.isInteger is a friend).
-
-// REFACTOR (on green):
-//   · GUARD CLAUSES — do the validations read as one clean fail-fast
-//     gate at the top of the method, one early exit per bad shape?
-//   · Would extracting a private #validate(n) keep the method telling
-//     a single story at one level of detail?
-//   · Would a thrown message that NAMES the bad input help a caller?
 
 // ── WHAT NEXT · the Extended story ───────────────────────────────────
 //   Shipped classic FizzBuzz? The requirements change in
