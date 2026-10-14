@@ -94,7 +94,32 @@ def test_returns_the_number_as_a_string_when_nothing_special_applies():
 #   Does your production code join the words, or did you special-case it?
 
 # ═════════════════════════════════════════════════════════════════════
-# CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+# CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+# ═════════════════════════════════════════════════════════════════════
+# Still RED work: the corners the story left dark on purpose. Same loop
+# as ever — ONE failing test at a time.
+
+# [edge] The story says counting starts at one — so what about 0? Negative
+#   numbers? Careful: 0 % 3 == 0. What would naive code return for a call
+#   with 0? DECIDE as a mob what "refuse it" means precisely (raise
+#   what — ValueError? something custom?), then encode the decision as
+#   tests (pytest.raises is the tool).
+
+# [negative] — nothing in Python stops a caller passing "3", 3.5 or None.
+#   What SHOULD each do? Write tests that pin the behavior down, then
+#   guard at runtime (isinstance is a friend).
+#   THE GOTCHA: bool is a subclass of int — isinstance(True, int) is
+#   True. Is True valid input? Write the test that answers it.
+
+# REFACTOR (on green):
+#   · GUARD CLAUSES — do the validations read as one clean fail-fast
+#     gate at the top of the method, one early exit per bad shape?
+#   · Would extracting a _validate(n) helper keep the method telling
+#     a single story at one level of detail?
+#   · Would a raised message that NAMES the bad input help a caller?
+
+# ═════════════════════════════════════════════════════════════════════
+# CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
 # ═════════════════════════════════════════════════════════════════════
 # Housekeeping first (hygiene, not a pattern): NAMED CONSTANTS —
 # do 3, 5, "Fizz", "Buzz" deserve names?
@@ -145,31 +170,6 @@ def test_returns_the_number_as_a_string_when_nothing_special_applies():
 #  modern code prefer composition?)
 #
 # Tests are code too: repeated setup to extract? @pytest.mark.parametrize?
-
-# ═════════════════════════════════════════════════════════════════════
-# CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-# ═════════════════════════════════════════════════════════════════════
-# Back to RED work: the corners the story left dark on purpose. Same loop
-# as ever — ONE failing test at a time.
-
-# [edge] The story says counting starts at one — so what about 0? Negative
-#   numbers? Careful: 0 % 3 == 0. What would naive code return for a call
-#   with 0? DECIDE as a mob what "refuse it" means precisely (raise
-#   what — ValueError? something custom?), then encode the decision as
-#   tests (pytest.raises is the tool).
-
-# [negative] — nothing in Python stops a caller passing "3", 3.5 or None.
-#   What SHOULD each do? Write tests that pin the behavior down, then
-#   guard at runtime (isinstance is a friend).
-#   THE GOTCHA: bool is a subclass of int — isinstance(True, int) is
-#   True. Is True valid input? Write the test that answers it.
-
-# REFACTOR (on green):
-#   · GUARD CLAUSES — do the validations read as one clean fail-fast
-#     gate at the top of the method, one early exit per bad shape?
-#   · Would extracting a _validate(n) helper keep the method telling
-#     a single story at one level of detail?
-#   · Would a raised message that NAMES the bad input help a caller?
 
 # ── WHAT NEXT · the Extended story ───────────────────────────────────
 #   Shipped classic FizzBuzz? The requirements change in

@@ -49,8 +49,8 @@ Your first RED is deliberate: **uncomment STEP 1's assertion** and run the tests
 | **STEP 0** | Write the test LIST first — as many todos as the mob can name, translating the story into test language. |
 | **STEP 1** | Uncomment the given assertion, watch it fail for the right reason, minimum green (`return "1"` is legal). |
 | **Invent tests** | Promote todos off the STEP 0 list — `[positive]` / `[boundary]` for the word rules, ONE red at a time. |
-| **CHECKPOINT #1 · pattern menu** | On green: mob picks **ONE** pattern from (a)–(f) and implements it. Coach's rule: one pattern at a time — green and a payoff check between picks. |
-| **CHECKPOINT #2 · negative & edge** | Back to red work: `0`/negatives (mind the `0 % 3 == 0` trap), plus runtime type guards in Python/JS. |
+| **CHECKPOINT #1 · negative & edge** | Still red work: `0`/negatives (mind the `0 % 3 == 0` trap), plus runtime type guards in Python/JS. |
+| **CHECKPOINT #2 · pattern menu** | On green: mob picks **ONE** pattern from (a)–(f) and implements it. Coach's rule: one pattern at a time — green and a payoff check between picks. |
 | **EXTENDED** | [FizzBuzzExtendedStory.md](FizzBuzzExtendedStory.md): Fizz becomes "the digits *contain a 3*", and even numbers with no word print `"*"`. These deliberately break existing tests — predict which, then drive the change test-first. |
 
 ## The contract (decide this as a mob)
@@ -77,7 +77,7 @@ your tests express the choice.**
 | **Edge** | ambiguous / contract-defining inputs | `0`, negatives |
 | **Negative** | invalid input is rejected, not silently mishandled | `"3"`, `3.5`, `null` (Python/JS at runtime; Java/C#: the compiler is this test) |
 
-## The pattern menu (checkpoint #1)
+## The pattern menu (checkpoint #2)
 
 The mob **decides which ONE to implement first**; the coach enforces
 one-pattern-at-a-time (implement → green → "did it pay for itself?" → next).
@@ -105,7 +105,7 @@ A deliberate cross-language teaching moment:
   write `[negative]` tests demanding it (`Number.isInteger(n)`,
   `isinstance(n, int)` — and remember `bool` is a subclass of `int` in Python).
 - **Java & C#** are statically typed. Passing `"3"` **won't compile** — the
-  type system is a test you didn't have to write. Their checkpoint #2 focuses
+  type system is a test you didn't have to write. Their checkpoint #1 focuses
   on **value** validation (`n < 1` → exception), and their very first RED is a
   compile error rather than a failing assertion.
 
@@ -127,27 +127,26 @@ point.
 
 ## Revealing the solution
 
-`solutions/<language>/` holds **two** end states per language:
+`solutions/<language>-steps/` replays, for each language, how a mob gets from an
+empty skeleton to the finished game. It has one runnable snapshot after every
+TDD step (test list, RED, GREEN, REFACTOR, positives, boundary, edge, negative,
+three patterns one at a time, then the extended story's two changes), and a
+walkthrough that quotes the real failure behind each red. Two snapshots are the
+end states:
 
-- **Classic** (`FizzBuzz` / `fizzbuzz`) — the classic game, with pattern-menu picks
-  (a) rules engine, (b) value object, (d) injection; (c), (e) and (f) declined.
-- **Extended** (`FizzBuzzExtended` / `fizzbuzz_extended`) — the same, plus the
-  digit-3 and `"*"` changes.
-  Here "contains a 3" forces predicate rules, so menu item **(c) Strategy** —
-  YAGNI for the classic kata — finally earns its place.
+- **Classic** (`step-08c-dependency-injection/`) — the classic game, with
+  pattern-menu picks (a) rules engine, (b) value object, (d) injection; (c), (e)
+  and (f) declined.
+- **Extended** (`step-10-extended-digit-three/`) — the same class, plus the
+  digit-3 and `"*"` changes, worked in place. Here "contains a 3" forces
+  predicate rules, so menu item **(c) Strategy** — YAGNI for the classic kata —
+  finally earns its place.
 
 The reference solutions name their method `convert` (`Convert` in C#). That is
 one choice, not a mandate — the mob names its own. If yours agreed on the same
-name, the classic files are drop-in; the extended files sit alongside them:
-
-```bash
-# from katas/fizzbuzz/
-cp solutions/python/*.py       python/       && (cd python && pytest)
-cp solutions/javascript/*.js   javascript/   && (cd javascript && npm test)
-cp solutions/java/FizzBuzz.java solutions/java/FizzBuzzExtended.java         java/src/main/java/kata/
-cp solutions/java/FizzBuzzTest.java solutions/java/FizzBuzzExtendedTest.java java/src/test/java/kata/ && (cd java && mvn test)
-cp solutions/csharp/*.cs       csharp/       && (cd csharp && dotnet test)
-```
+name, a step's files drop straight over the skeleton.
+[solutions/README.md](solutions/README.md) has the run command for each
+language.
 
 Keep them closed until the retro. The solutions deliberately *show their
 judgment* — which patterns they took, which they declined, and why — so the

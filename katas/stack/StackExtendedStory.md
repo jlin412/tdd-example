@@ -58,7 +58,7 @@ The reference solution, per language — reveal it at the retro, not before:
 
 | Language | Solution |
 |---|---|
-| Python | [solutions/python/bounded_stack.py](solutions/python/bounded_stack.py) |
-| TypeScript | [solutions/typescript/boundedStack.ts](solutions/typescript/boundedStack.ts) |
-| Java | [solutions/java/BoundedStack.java](solutions/java/BoundedStack.java) |
-| C# | [solutions/csharp/BoundedStack.cs](solutions/csharp/BoundedStack.cs) |
+| Python | [solutions/python-steps/step-10-extended-full/bounded_stack.py](solutions/python-steps/step-10-extended-full/bounded_stack.py) |
+| TypeScript | [solutions/typescript-steps/step-10-extended-full/boundedStack.ts](solutions/typescript-steps/step-10-extended-full/boundedStack.ts) |
+| Java | [solutions/java-steps/step-10-extended-full/BoundedStack.java](solutions/java-steps/step-10-extended-full/BoundedStack.java) |
+| C# | [solutions/csharp-steps/step-10-extended-full/BoundedStack.cs](solutions/csharp-steps/step-10-extended-full/BoundedStack.cs) |

@@ -2,20 +2,34 @@
 
 **Spoilers.** Keep this folder closed until the retro.
 
-Each language ships **two** finished implementations, each with a complete test
-suite. These are **one possible end state**, not the only correct answer — the
-point of the retro is to compare your mob's design against this and argue with
-its choices.
+Each language ships as a **step-by-step trail**: one runnable snapshot after
+every TDD step, from the test list to the finished extended game, with a
+walkthrough that quotes the real failure behind each red. Two of the snapshots
+are the finished implementations, each with a complete test suite:
 
-- **Classic** (`FizzBuzz` / `fizzbuzz`) — the classic game, per
+- **Classic**, in `step-08c-dependency-injection/`: the classic game, per
   [FizzBuzzStory.md](../FizzBuzzStory.md).
-- **Extended** (`FizzBuzzExtended` / `fizzbuzz_extended`) — the same plus the
-  digit-3 and `"*"` changes,
-  per [FizzBuzzExtendedStory.md](../FizzBuzzExtendedStory.md).
+- **Extended**, in `step-10-extended-digit-three/`: the same class plus the
+  digit-3 and `"*"` changes, per
+  [FizzBuzzExtendedStory.md](../FizzBuzzExtendedStory.md), worked in place.
+
+These are **one possible end state**, not the only correct answer. The point of
+the retro is to compare your mob's design against this and argue with its
+choices.
+
+| Language | Trail | Runs with |
+|---|---|---|
+| JavaScript | [javascript-steps/](javascript-steps/README.md) | the skeleton's vitest, via `--root` |
+| Python | [python-steps/](python-steps/README.md) | `pytest` inside the step folder |
+| Java | [java-steps/](java-steps/README.md) | copy over the skeleton in a scratch copy, then `mvn test` |
+| C# | [csharp-steps/](csharp-steps/README.md) | copy over the skeleton in a scratch copy, then `dotnet test` |
+
+In every language, `step-01-red` fails on purpose. In Java and C# it doesn't
+even compile, which is a legitimate first RED in a statically typed language.
 
 ## Design shown here — classic
 
-All four languages converge on the same shape. From the checkpoint-#1 pattern
+All four languages converge on the same shape. From the checkpoint-#2 pattern
 menu, this "team" implemented — one at a time, per the coach's rule:
 
 - **(a) Rules engine** — rules are data (a `(divisor, word)` table).
@@ -53,17 +67,21 @@ Everywhere, in both:
 
 ## Running the finished state
 
-These name their method `convert` (`Convert` in C#) — if your mob chose the
-same, the classic files drop straight in; the extended files sit alongside them.
-Copy over and run:
+These name their method `convert` (`Convert` in C#). If your mob chose the same
+name, a step's files drop straight over the skeleton. Use a scratch copy of the
+repo if you want to keep the skeletons pristine.
 
 ```bash
-# from katas/fizzbuzz/
-cp solutions/python/*.py       python/       && (cd python && pytest)
-cp solutions/javascript/*.js   javascript/   && (cd javascript && npm test)
-cp solutions/java/FizzBuzz.java solutions/java/FizzBuzzExtended.java         java/src/main/java/kata/
-cp solutions/java/FizzBuzzTest.java solutions/java/FizzBuzzExtendedTest.java java/src/test/java/kata/ && (cd java && mvn test)
-cp solutions/csharp/*.cs       csharp/       && (cd csharp && dotnet test)
+# from katas/fizzbuzz/javascript/ — no copying needed
+npx vitest run --root ../solutions/javascript-steps/step-10-extended-digit-three
+
+# from katas/fizzbuzz/solutions/python-steps/step-10-extended-digit-three/
+pytest
+
+# from katas/fizzbuzz/, in a scratch copy
+S=solutions/java-steps/step-10-extended-digit-three
+cp $S/FizzBuzz.java java/src/main/java/kata/ && cp $S/FizzBuzzTest.java java/src/test/java/kata/ && (cd java && mvn test)
+cp solutions/csharp-steps/step-10-extended-digit-three/*.cs csharp/ && (cd csharp && dotnet test)
 ```
 
-(Use a scratch copy of the repo if you want to keep the skeletons pristine.)
+Swap `step-10-extended-digit-three` for any other step folder to run that step.

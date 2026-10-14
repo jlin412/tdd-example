@@ -82,8 +82,8 @@ todos report as pending. **Uncommenting STEP 1 is what gets you your first red.*
 | **STEP 0** | Write the test LIST first — as many pending tests as the mob can name. Name whole *sequences*, not single calls. |
 | **STEP 1** | Uncomment the given assertion, watch it fail (see the table above for what "fail" looks like in your language), minimum green (`return true` is legal). |
 | **Invent tests** | Promote todos off the list — push/pop round-trip, the LIFO proof, peek-doesn't-remove, size across a sequence. ONE red at a time. |
-| **CHECKPOINT #1 · pattern menu** | On green: mob picks **ONE** pattern from (a)–(f). Coach's rule: one at a time — green + a payoff check between picks. |
-| **CHECKPOINT #2 · negative & edge** | The empty contract; the nothing-shaped-item ambiguity it creates; the internals leak; and proving what each safety net catches. |
+| **CHECKPOINT #1 · negative & edge** | Still red work: the empty contract; the nothing-shaped-item ambiguity it creates; the internals leak. |
+| **CHECKPOINT #2 · pattern menu** | On green: mob picks **ONE** pattern from (a)–(f). Coach's rule: one at a time — green + a payoff check between picks. Then, once generics are in: proving what each safety net catches. |
 | **EXTENDED** | [StackExtendedStory.md](StackExtendedStory.md): a maximum size. Breaks existing construction on purpose — predict which tests before running. |
 
 ## The contract (decide this as a mob)
@@ -112,7 +112,7 @@ compiler — pushing the wrong type simply doesn't build, so there is nothing to
 assert. In Python nothing is written for you. Noticing *which* of your tests
 the compiler made redundant is part of checkpoint #2.
 
-## The pattern menu (checkpoint #1)
+## The pattern menu (checkpoint #2)
 
 The mob **decides which ONE to implement first**; the coach enforces
 one-pattern-at-a-time. Same *shape* as the other katas' menus, re-flavored for a
@@ -151,29 +151,29 @@ that.
 
 ## Revealing the solution
 
-`solutions/<language>/` holds one possible end state per language — all four
-converge on the same design so they can be compared side by side:
+`solutions/<language>-steps/` replays, for each language, how a mob gets from an
+empty skeleton to the finished stack: one runnable snapshot per TDD step (test
+list, RED, GREEN, REFACTOR, positives, boundary, edge, negative, two patterns one
+at a time, then the extended story's two requirements), and a walkthrough that
+quotes the real failure behind each red. All four converge on the same design so
+they can be compared side by side:
 
-- **Classic** — pattern-menu picks **(a) generics** and **(e) the iteration
-  protocol**; (b), (d) and (f) declined with reasons in each header comment.
-  It **throws/raises** on empty, and the header says why.
-- **Extended** — the capacity limit as a **(c) Decorator** that wraps the plain
-  stack rather than editing it, so the classic suite stays green untouched.
+- **Classic** (`step-08b-iterator/`) — pattern-menu picks **(a) generics** and
+  **(e) the iteration protocol**; (b), (d) and (f) declined with reasons in each
+  header comment. It **throws/raises** on empty, and the header says why.
+- **Extended** (`step-10-extended-full/`) — the capacity limit as a **(c)
+  Decorator** that wraps the plain stack rather than editing it, so the classic
+  suite stays green untouched.
+- **No native stack, in any language.** Each stack is built on a plain array used
+  only by index, with its own count — no `push`/`pop`/`append`, no `ArrayList`,
+  `List<T>` or `Deque`. Where the array is fixed-size (Python, Java, C#) the
+  stack grows it by copying into a bigger one by hand; a JavaScript array grows
+  by itself, which is a difference the trails make visible.
 
 Each uses `is_empty()`/`isEmpty()`/`IsEmpty()` and `size()`/`Size()` and
 throws on empty. Those are *one* set of choices, not a mandate — the story
-leaves the API shape to the mob. If yours matches, they're drop-in:
-
-```bash
-# from katas/stack/, over a scratch copy if you want to keep the skeletons pristine
-cp solutions/python/*.py      python/      && (cd python && pytest)
-cp solutions/typescript/*.ts  typescript/  && (cd typescript && npm test && npm run typecheck)
-cp solutions/java/Stack.java solutions/java/EmptyStackException.java \
-   solutions/java/BoundedStack.java solutions/java/FullStackException.java  java/src/main/java/kata/
-cp solutions/java/StackTest.java solutions/java/BoundedStackTest.java       java/src/test/java/kata/
-(cd java && mvn test)
-cp solutions/csharp/*.cs      csharp/      && (cd csharp && dotnet test)
-```
+leaves the API shape to the mob. If yours matches, any step drops over the
+skeleton; [solutions/README.md](solutions/README.md) has the commands.
 
 Keep them closed until the retro. The solutions deliberately *show their
 judgment* — which patterns they took, which they declined, and why — so the retro

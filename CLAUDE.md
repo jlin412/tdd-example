@@ -163,12 +163,49 @@ wiring typechecking into the test script. When changing TypeScript in that
 kata, run both commands.
 
 **Solutions have no build files of their own.** `katas/*/solutions/<lang>/`
-holds only source — no `package.json`/`pom.xml`/`.csproj`. To run a solution
-suite, either point the sibling skeleton's test runner at it (e.g. from
-`katas/fizzbuzz/javascript/`: `npx vitest run --root ../solutions/javascript`)
+(and every `<lang>-steps/step-*/` folder) holds only source — no
+`package.json`/`pom.xml`/`.csproj`. To run a solution suite, either point the
+sibling skeleton's test runner at it (e.g. from `katas/fizzbuzz/javascript/`:
+`npx vitest run --root ../solutions/javascript-steps/step-10-extended-digit-three`)
 or copy the solution files over the skeleton in a scratch copy of the repo
 (each kata's root `README.md` has the exact `cp` commands). Don't overwrite a
 real skeleton with a solution unless asked.
+
+**FizzBuzz is the exception to the flat `solutions/<lang>/` shape**: it has
+no `katas/fizzbuzz/solutions/{javascript,python,java,csharp}/`. Each language's
+reference solution lives in `katas/fizzbuzz/solutions/<lang>-steps/`, one
+runnable snapshot per TDD step (0–7, 8a/8b/8c, 9, 10) plus a walkthrough
+`README.md`. `step-01-red` fails **on purpose** in every language (in Java/C#
+it doesn't compile) — that's expected, not a regression. Java/C# step 7 has no
+production change: the compiler is the [negative] test. JavaScript steps run
+with `--root` as above; Python steps run with `pytest` inside the step folder
+(one folder at a time — every step has a `fizzbuzz.py`); Java/C# steps are
+copied over the skeleton in a scratch copy. `step-08c-dependency-injection/`
+is the classic end state and `step-10-extended-digit-three/` the extended one,
+evolved in place (same class name, so there is no `FizzBuzzExtended` any
+more). Keep the four trails in step parity (same steps, same cases wherever
+the language allows — test totals differ only because the [negative] group
+differs), and don't recreate flat solution folders alongside them.
+
+**Stack follows the same shape**: no flat `katas/stack/solutions/<lang>/`;
+each language's reference is `katas/stack/solutions/<lang>-steps/` (0–7,
+8a generics / 8b iterator, 9 R7 capacity / 10 R8 full), run the same way as
+FizzBuzz's (TypeScript also needs `npm run typecheck`, which only works over
+the skeleton). **No native stack, in any language — keep it that way** (the
+user asked for it): every `Stack` sits on a plain array used **only by index**
+with its own count — no `push`/`pop`/`append`/`splice`, no
+`ArrayList`/`List<T>`/`Deque`/`java.util.Stack`, no
+`Arrays.copyOf`/`Array.Resize` — and clears popped slots. Python/Java/C#
+arrays are fixed-size, so those stacks grow by copying by hand (forced by the
+[boundary] "holds as many items as you push" test, which TypeScript passes
+without growth code). Steps 9–10 add `BoundedStack` as a Decorator: the
+`Stack` files must stay byte-identical across 8b, 9 and 10. Several reds are
+deliberately language-shaped — don't "fix" them: TS step 7 is runtime-only
+(`private` vs `#`) and 8a typecheck-only (TS2578); Python step 7 ends in a
+test that *pins* "private is only a convention" and 8a has no red at all;
+Java/C# step 7 is a compile error with no production change; and C# 8a's
+tests, run against the non-generic class, bind `Stack<string>` to .NET's own
+`System.Collections.Generic.Stack<T>` via the implicit usings.
 
 ## Architecture: how a kata is assembled
 
@@ -213,6 +250,12 @@ kata) consistent with it — they're deliberately parallel.
      decline, and why.
    - A **CHECKPOINT #2** for negative/edge cases (invalid input, boundary
      contract decisions the story deliberately left open).
+   - **FizzBuzz and Stack run these the other way round on purpose**:
+     negative & edge is their CHECKPOINT #1 and the pattern menu their #2, so
+     the patterns land on a fully pinned-down contract. In Stack, each
+     language's safety-net prompt (it needs generics or an iterator) sits at
+     the end of the pattern menu, not in #1. Don't "fix" either back to
+     match the url-shortener kata.
 
 4. **`facilitator/RULES.md`** — the canonical numbered rule list (R1, R2,
    ...; the url-shortener frontend track uses F1, F2, ...) and pre-decided "product owner" answers to the questions a mob will

@@ -107,7 +107,36 @@ it('a brand-new stack is empty', () => {
 //   count follow the operations, or only the pushes?
 
 // ═════════════════════════════════════════════════════════════════════
-// CHECKPOINT #1 · REFACTOR — THE PATTERN MENU  (only when green)
+// CHECKPOINT #1 · NEGATIVE & EDGE — pin the contract down
+// ═════════════════════════════════════════════════════════════════════
+// Still RED work: the corners the story deliberately left open. ONE
+// failing test at a time.
+
+// [edge] — popping an empty stack. And peeking one.
+//   The story does NOT tell you what should happen. Throw? Return
+//   undefined? Something else? DECIDE as a mob, then encode the decision
+//   as a test. (Every language answers this differently — Python raises,
+//   Java throws, JavaScript's own Array.pop() quietly returns undefined.)
+
+// [edge] — the ambiguity that decision creates.
+//   Suppose you chose "return undefined when empty". Now push undefined
+//   into the stack and pop it. Can a caller tell those two cases apart?
+//   Write the test that exposes it, then decide what to do about it —
+//   this is exactly what menu item (d) is for.
+
+// [negative] — the leak.
+//   Can a caller reach your internal array and mutate the stack behind
+//   its back? Try it: get whatever your public API hands out, change it,
+//   and then ask the stack what it contains. If the stack changed, you
+//   have a bug that no other test in this file would ever have caught.
+
+// REFACTOR (on green):
+//   · Does the public API read as a stack — or does it leak how it's stored?
+//   · Is the empty-stack decision expressed in ONE place, or repeated at
+//     every entry point?
+
+// ═════════════════════════════════════════════════════════════════════
+// CHECKPOINT #2 · REFACTOR — THE PATTERN MENU  (only when green)
 // ═════════════════════════════════════════════════════════════════════
 // Housekeeping first (hygiene, not a pattern): is the backing array
 // private? Does anything in the public API hand it out?
@@ -152,40 +181,11 @@ it('a brand-new stack is empty', () => {
 // (a stackOf('a', 'b', 'c')?) — and notice that a good helper makes the
 // NEXT test easier to write, which is the real payoff.
 
-// ═════════════════════════════════════════════════════════════════════
-// CHECKPOINT #2 · NEGATIVE & EDGE — pin the contract down
-// ═════════════════════════════════════════════════════════════════════
-// Back to RED work: the corners the story deliberately left open. ONE
-// failing test at a time.
-
-// [edge] — popping an empty stack. And peeking one.
-//   The story does NOT tell you what should happen. Throw? Return
-//   undefined? Something else? DECIDE as a mob, then encode the decision
-//   as a test. (Every language answers this differently — Python raises,
-//   Java throws, JavaScript's own Array.pop() quietly returns undefined.)
-
-// [edge] — the ambiguity that decision creates.
-//   Suppose you chose "return undefined when empty". Now push undefined
-//   into the stack and pop it. Can a caller tell those two cases apart?
-//   Write the test that exposes it, then decide what to do about it —
-//   this is exactly what menu item (d) is for.
-
-// [negative] — the leak.
-//   Can a caller reach your internal array and mutate the stack behind
-//   its back? Try it: get whatever your public API hands out, change it,
-//   and then ask the stack what it contains. If the stack changed, you
-//   have a bug that no other test in this file would ever have caught.
-
 // [edge] — the two safety nets, proven.
 //   Deliberately break a type: pop into a variable of the wrong type, or
 //   push a string onto a Stack<number>. Run `npm test` — does it pass?
 //   Run `npm run typecheck` — does it fail? Retro question: which of your
 //   bugs today would each net have caught?
-
-// REFACTOR (on green):
-//   · Does the public API read as a stack — or does it leak how it's stored?
-//   · Is the empty-stack decision expressed in ONE place, or repeated at
-//     every entry point?
 
 // ── WHAT NEXT · the Extended story ───────────────────────────────────
 //   Shipped the stack? The requirements change in ../StackExtendedStory.md

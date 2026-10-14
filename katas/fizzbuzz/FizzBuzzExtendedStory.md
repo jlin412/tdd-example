@@ -55,4 +55,5 @@ Where does that belong, if not in the rule list?
 ## Reference solution
 
 Reveal at the end:
-[solutions/javascript/fizzbuzzExtended.js](solutions/javascript/fizzbuzzExtended.js).
+[solutions/javascript-steps/step-10-extended-digit-three/fizzbuzz.js](solutions/javascript-steps/step-10-extended-digit-three/fizzbuzz.js)
+— or walk the whole TDD path in [solutions/javascript-steps/](solutions/javascript-steps/README.md).

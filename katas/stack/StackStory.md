@@ -77,10 +77,10 @@ reference solution to reveal at the end, and how to run the tests:
 
 | Language | Skeleton | Solution | Run |
 |---|---|---|---|
-| Python | [python/](python/) | [solutions/python/](solutions/python/) | `pip install -r requirements.txt`, then `pytest` |
-| TypeScript | [typescript/](typescript/) | [solutions/typescript/](solutions/typescript/) | `npm install`, then `npm test` — **and `npm run typecheck`** |
-| Java | [java/](java/) | [solutions/java/](solutions/java/) | `mvn test` |
-| C# | [csharp/](csharp/) | [solutions/csharp/](solutions/csharp/) | `dotnet test` |
+| Python | [python/](python/) | [solutions/python-steps/](solutions/python-steps/README.md) — step by step | `pip install -r requirements.txt`, then `pytest` |
+| TypeScript | [typescript/](typescript/) | [solutions/typescript-steps/](solutions/typescript-steps/README.md) — step by step | `npm install`, then `npm test` — **and `npm run typecheck`** |
+| Java | [java/](java/) | [solutions/java-steps/](solutions/java-steps/README.md) — step by step | `mvn test` |
+| C# | [csharp/](csharp/) | [solutions/csharp-steps/](solutions/csharp-steps/README.md) — step by step | `dotnet test` |
 
 Your language decides how much help you get on the gaps above. Java and C#
 refuse to build code whose types don't line up; TypeScript checks types only
